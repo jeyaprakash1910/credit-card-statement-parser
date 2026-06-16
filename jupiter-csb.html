@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jupiter CSB edge+ — Statement to CSV</title>
+<style>
+  html,body{ margin:0; padding:0; }
+  .crumb-bar{
+    max-width:1040px;
+    margin:0 auto;
+    padding:18px 22px 0;
+  }
+  .crumb-bar a{
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:#1F4B43;
+    text-decoration:none;
+  }
+  .crumb-bar a:hover{ text-decoration:underline; }
+</style>
+</head>
+<body>
+<div class="crumb-bar"><a href="index.html">&larr; All cards</a></div>
+<style>
+  :root{
+    --paper:#F6F3EC;
+    --ink:#1B2420;
+    --teal:#1F4B43;
+    --brass:#AD8A4E;
+    --rust:#9C3B2E;
+    --line: rgba(27,36,32,0.14);
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .jcb-app *{ box-sizing:border-box; }
+  .jcb-app{
+    font-family:var(--sans);
+    background:var(--paper);
+    color:var(--ink);
+    padding:28px 22px 40px;
+    max-width:1040px;
+    margin:0 auto;
+    line-height:1.45;
+  }
+  .jcb-eyebrow{ font-family:var(--mono); text-transform:uppercase; letter-spacing:.14em; font-size:11px; font-weight:700; color:var(--brass); margin-bottom:8px; }
+  .jcb-title{ font-family:var(--mono); font-weight:700; font-size:clamp(20px,4vw,28px); letter-spacing:-0.01em; margin:0 0 10px; display:inline-block; }
+  .jcb-version-badge{
+    display:inline-block; margin-left:10px; vertical-align:middle;
+    font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.04em;
+    background:var(--teal); color:var(--paper); padding:4px 9px; border-radius:5px;
+  }
+  .jcb-subtitle{ font-size:14px; color:rgba(27,36,32,0.72); max-width:560px; margin:0 0 22px; }
+
+  .jcb-dropzone{
+    border:2px dashed var(--brass); border-radius:10px; padding:38px 22px; text-align:center;
+    background:rgba(173,138,78,0.06); cursor:pointer; transition:background .15s ease, border-color .15s ease;
+    margin-bottom:16px;
+  }
+  .jcb-dropzone:hover{ background:rgba(173,138,78,0.10); }
+  .jcb-dropzone.dragover{ background:rgba(31,75,67,0.08); border-color:var(--teal); }
+  .jcb-dz-icon{ font-size:24px; color:var(--teal); margin-bottom:8px; }
+  .jcb-dz-text{ font-weight:600; font-size:14.5px; }
+  .jcb-dz-sub{ font-size:12.5px; color:rgba(27,36,32,0.6); margin-top:6px; }
+
+  .jcb-banner{ margin-bottom:14px; padding:12px 14px; border-radius:8px; font-size:13.5px; }
+  .jcb-banner.error{ background:rgba(156,59,46,0.08); border:1px solid rgba(156,59,46,0.35); color:var(--rust); }
+  .jcb-banner.warning{ background:rgba(173,138,78,0.10); border:1px solid rgba(173,138,78,0.4); color:#6b4f1f; }
+  .jcb-banner-close{ float:right; cursor:pointer; font-weight:700; opacity:.6; }
+  .jcb-banner-close:hover{ opacity:1; }
+
+  .jcb-loading{ text-align:center; padding:30px 0; font-family:var(--mono); font-size:13px; letter-spacing:.05em; color:var(--teal); animation:jcb-pulse 1.4s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce){ .jcb-loading{ animation:none; } }
+  @keyframes jcb-pulse{ 0%,100%{opacity:.45;} 50%{opacity:1;} }
+
+  .jcb-summary-bar{
+    background:var(--teal); color:var(--paper); padding:16px 18px; border-radius:8px;
+    display:flex; gap:22px; flex-wrap:wrap; margin-bottom:18px;
+  }
+  .jcb-stat-num{ font-family:var(--mono); font-weight:700; font-size:15px; display:block; }
+  .jcb-stat-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:rgba(246,243,236,0.65); }
+  .jcb-stat-num.ok{ color:#bfe6b0; }
+  .jcb-stat-num.fail{ color:#f3b9a8; }
+
+  .jcb-table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+  .jcb-table{ width:100%; border-collapse:collapse; min-width:780px; font-size:13.5px; }
+  .jcb-table thead th{
+    text-align:left; font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.08em;
+    color:rgba(27,36,32,0.6); padding:10px 10px; border-bottom:1px solid var(--line); background:rgba(173,138,78,0.07);
+  }
+  .jcb-table td{ border-bottom:1px solid var(--line); padding:2px 4px; vertical-align:middle; }
+  .jcb-table input, .jcb-table select{
+    width:100%; border:none; background:transparent; font-family:var(--sans); font-size:13.5px;
+    color:var(--ink); padding:8px 6px; border-radius:5px;
+  }
+  .jcb-table input:focus, .jcb-table select:focus{ outline:none; background:rgba(173,138,78,0.10); box-shadow:inset 0 -2px 0 var(--brass); }
+  .jcb-table .cell-date, .jcb-table .cell-time, .jcb-table .cell-amt{ font-family:var(--mono); }
+  .jcb-table .cell-amt{ text-align:right; }
+  .jcb-table th:nth-child(1), .jcb-table td:nth-child(1){ width:96px; }
+  .jcb-table th:nth-child(2), .jcb-table td:nth-child(2){ width:90px; }
+  .jcb-table th:nth-child(4), .jcb-table td:nth-child(4){ width:96px; }
+  .jcb-table th:nth-child(5), .jcb-table td:nth-child(5){ width:96px; }
+  .jcb-table th:nth-child(6), .jcb-table td:nth-child(6){ width:190px; }
+  .jcb-table th:nth-child(7), .jcb-table td:nth-child(7){ width:34px; }
+  .jcb-table tr.review-row{ background:rgba(173,138,78,0.10); }
+  .jcb-row-del{ background:none; border:none; color:rgba(27,36,32,0.4); font-size:16px; cursor:pointer; padding:4px 8px; border-radius:5px; }
+  .jcb-row-del:hover{ color:var(--rust); background:rgba(156,59,46,0.08); }
+
+  .jcb-btn-outline, .jcb-btn-primary{
+    font-family:var(--mono); font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    padding:11px 18px; border-radius:7px; cursor:pointer; border:1px solid var(--teal);
+  }
+  .jcb-btn-outline{ background:transparent; color:var(--teal); }
+  .jcb-btn-outline:hover{ background:rgba(31,75,67,0.06); }
+  .jcb-btn-primary{ background:var(--teal); color:var(--paper); }
+  .jcb-btn-primary:hover{ background:#173e37; }
+  .jcb-addrow{ margin-top:14px; }
+
+  .jcb-review-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:22px; gap:12px; flex-wrap:wrap; }
+
+  .jcb-debug{ margin-top:26px; font-size:13px; color:rgba(27,36,32,0.75); }
+  .jcb-debug summary{ cursor:pointer; font-family:var(--mono); letter-spacing:.04em; font-weight:700; color:var(--teal); }
+  .jcb-debug-card{ border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin-top:12px; background:rgba(173,138,78,0.04); }
+  .jcb-debug-row{ margin:3px 0; }
+  .jcb-debug-row b{ font-family:var(--mono); font-weight:700; }
+  .jcb-debug-card pre{ white-space:pre-wrap; background:rgba(27,36,32,0.04); border:1px solid var(--line); border-radius:6px; padding:10px; margin-top:8px; max-height:220px; overflow:auto; font-size:12px; }
+  .jcb-debug-card details summary{ font-weight:600; color:var(--ink); }
+  .jcb-valid-ok{ color:#1F4B43; font-weight:700; }
+  .jcb-valid-fail{ color:var(--rust); font-weight:700; }
+
+  @media (max-width:560px){
+    .jcb-app{ padding:20px 14px 32px; }
+    .jcb-summary-bar{ flex-direction:column; gap:10px; }
+  }
+</style>
+
+<div class="jcb-app">
+
+  <div>
+    <span class="jcb-eyebrow">Statement → Ledger</span>
+  </div>
+  <div>
+    <h1 class="jcb-title">Jupiter Edge CSB statement to CSV</h1>
+    <span class="jcb-version-badge">Parser: Jupiter-CSB-v1</span>
+  </div>
+  <p class="jcb-subtitle">Drop one or more Jupiter Edge CSB statement PDFs. Each one is checked against the statement's own summary totals before you trust it, and parsing happens entirely in your browser — nothing is uploaded anywhere.</p>
+
+  <div class="jcb-dropzone" id="jcb-dropzone">
+    <div class="jcb-dz-icon">⬆</div>
+    <div class="jcb-dz-text" id="jcb-dzText">Drop a Jupiter Edge CSB statement PDF, or click to browse</div>
+    <div class="jcb-dz-sub">Add statements one at a time — each gets validated independently</div>
+    <input type="file" id="jcb-fileInput" accept="application/pdf,.pdf" hidden>
+  </div>
+
+  <div id="jcb-bannerArea"></div>
+  <div id="jcb-loadingView" hidden><div class="jcb-loading">READING PDF…</div></div>
+
+  <div class="jcb-summary-bar" id="jcb-summaryBar" hidden>
+    <div><span class="jcb-stat-num" id="jcb-periodVal">—</span><span class="jcb-stat-label">statement period(s)</span></div>
+    <div><span class="jcb-stat-num" id="jcb-rowCount">0</span><span class="jcb-stat-label">rows</span></div>
+    <div><span class="jcb-stat-num" id="jcb-debitTotal">₹0.00</span><span class="jcb-stat-label">debit total</span></div>
+    <div><span class="jcb-stat-num" id="jcb-creditTotal">₹0.00</span><span class="jcb-stat-label">credit total</span></div>
+    <div><span class="jcb-stat-num" id="jcb-validationVal">—</span><span class="jcb-stat-label">validation</span></div>
+  </div>
+
+  <div id="jcb-tableSection" hidden>
+    <div class="jcb-table-wrap">
+      <table class="jcb-table">
+        <thead><tr><th>Date</th><th>Time</th><th>Description</th><th>Amount</th><th>Type</th><th>Statement Period</th><th></th></tr></thead>
+        <tbody id="jcb-txBody"></tbody>
+      </table>
+    </div>
+    <button class="jcb-btn-outline jcb-addrow" id="jcb-addRowBtn">+ Add row</button>
+  </div>
+
+  <details class="jcb-debug" id="jcb-debugPanel" hidden>
+    <summary>Debug panel</summary>
+    <div id="jcb-debugContent"></div>
+  </details>
+
+  <div class="jcb-review-footer" id="jcb-footer" hidden>
+    <button class="jcb-btn-outline" id="jcb-startOverBtn">Start over</button>
+    <button class="jcb-btn-primary" id="jcb-downloadBtn">Download CSV</button>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+(function(){
+  const pdfjsLib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+  if (pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  }
+
+  const PARSER_VERSION = 'Jupiter-CSB-v1';
+  const ROW_Y_TOL = 2.5;
+  const TIME_Y_TOL = 14;
+  const DATE_X_MIN = 10, DATE_X_MAX = 45;
+  const AMOUNT_X_MIN = 450;
+  const CREDIT_KEYWORDS = [
+    'repayment - thank you',
+    'jewels converted to statement credit',
+    'refund',
+    'reversal',
+    'cashback',
+    'waiver',
+    'statement credit'
+  ];
+  const MONTHS = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+
+  class ParseError extends Error {
+    constructor(code, message) { super(message); this.code = code; }
+  }
+
+  // ---------- low-level helpers ----------
+  function groupLines(items, yTol){
+    yTol = yTol || ROW_Y_TOL;
+    const sorted = [...items].sort((a,b) => b.y - a.y);
+    const lines = [];
+    for (const it of sorted) {
+      let line = lines.find(l => Math.abs(l.y - it.y) <= yTol);
+      if (!line) { line = { y: it.y, items: [] }; lines.push(line); }
+      line.items.push(it);
+    }
+    lines.forEach(l => l.items.sort((a,b) => a.x - b.x));
+    lines.sort((a,b) => b.y - a.y);
+    return lines;
+  }
+  function isDateToken(text){ return /^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$/.test(text.trim()); }
+  function isTimeToken(text){ return /^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(text.trim()); }
+  function isAmountToken(text){ return /^Rs\.\s*[\d,]+(?:\.\d{2})?$/.test(text.trim()); }
+  function isPeriodBannerToken(text){ return /^\d{1,2}\s+[A-Z]{3}\s+\d{4}\s*-\s*\d{1,2}\s+[A-Z]{3}\s+\d{4}$/.test(text.trim()); }
+  function parseAmountToken(text){
+    const m = text.match(/Rs\.\s*([\d,]+(?:\.\d{2})?)/);
+    if (!m) return NaN;
+    return parseFloat(m[1].replace(/,/g,''));
+  }
+  function toIsoDate(s){
+    const m = s.trim().match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/);
+    if (!m) return s.trim();
+    const day = m[1].padStart(2,'0');
+    const mon = MONTHS[m[2].toLowerCase()] || '01';
+    return `${m[3]}-${mon}-${day}`;
+  }
+  function classify(description){
+    const d = description.toLowerCase();
+    for (const kw of CREDIT_KEYWORDS) { if (d.includes(kw)) return 'Credit'; }
+    return 'Debit';
+  }
+  function isEndMarkerLine(line){
+    const joined = line.items.map(i=>i.text).join(' ').replace(/-/g,' ').replace(/\s+/g,' ').trim();
+    return /end\s+of\s+transactions/i.test(joined);
+  }
+  function getAnchorInfo(line){
+    const sorted = line.items.slice().sort((a,b)=>a.x-b.x);
+    if (sorted.length < 2) return null;
+    const first = sorted[0], last = sorted[sorted.length-1];
+    if (!isDateToken(first.text)) return null;
+    if (!isAmountToken(last.text)) return null;
+    return { dateItem: first, amountItem: last, middleItems: sorted.slice(1, -1) };
+  }
+  function fingerprintOk(anchor){
+    if (anchor.dateItem.x < DATE_X_MIN || anchor.dateItem.x > DATE_X_MAX) return false;
+    if (anchor.amountItem.x < AMOUNT_X_MIN) return false;
+    return true;
+  }
+  function findTimeForAnchor(anchorLine, allLines, dateItemX){
+    let best = null, bestDist = Infinity;
+    for (const line of allLines) {
+      if (line === anchorLine) continue;
+      const dist = anchorLine.y - line.y; // positive => below the anchor
+      if (dist <= 0 || dist > TIME_Y_TOL) continue;
+      const timeItem = line.items.find(it => isTimeToken(it.text) && Math.abs(it.x - dateItemX) < 20);
+      if (timeItem && dist < bestDist) { bestDist = dist; best = timeItem.text.trim(); }
+    }
+    return best;
+  }
+  function extractSummary(page1Items){
+    const rsOnly = page1Items.filter(it => isAmountToken(it.text) && it.x > AMOUNT_X_MIN);
+    rsOnly.sort((a,b) => b.y - a.y);
+    if (rsOnly.length < 9) return null;
+    const vals = rsOnly.slice(0, 9).map(it => parseAmountToken(it.text));
+    return {
+      previousBalance: vals[0], spends: vals[1], interestCharges: vals[2],
+      fees: vals[3], taxes: vals[4], repayments: vals[5],
+      refundsAndReversals: vals[6], waivers: vals[7], totalAmountDue: vals[8]
+    };
+  }
+
+  // ---------- main per-file parse ----------
+  async function parseFile(file){
+    if (!/\.pdf$/i.test(file.name)) {
+      throw new ParseError('not_pdf', "That doesn't look like a PDF. Please choose a PDF statement.");
+    }
+    if (!pdfjsLib) {
+      throw new ParseError('engine_failed', 'PDF engine failed to load — check your internet connection and retry.');
+    }
+    const buf = await file.arrayBuffer();
+    let pdf;
+    try {
+      pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    } catch (e) {
+      throw new ParseError('unreadable', 'Could not open this PDF (' + e.message + '). It may be corrupted, password-protected, or not a real PDF.');
+    }
+    if (!pdf.numPages || pdf.numPages < 1) {
+      throw new ParseError('empty_pdf', 'This PDF has no pages.');
+    }
+
+    // Page 1 is ALWAYS treated as the cover/summary page and is NEVER scanned for transactions.
+    const page1 = await pdf.getPage(1);
+    const page1Content = await page1.getTextContent();
+    const page1Items = page1Content.items
+      .map(it => ({ text: it.str, x: it.transform[4], y: it.transform[5] }))
+      .filter(it => it.text.trim() !== '');
+    if (page1Items.length === 0) {
+      throw new ParseError('empty_pdf', 'This PDF appears to be empty or has no readable text.');
+    }
+
+    const periodItem = page1Items.find(it => isPeriodBannerToken(it.text));
+    const period = periodItem ? periodItem.text.trim() : 'Unknown period';
+    const summary = extractSummary(page1Items);
+
+    let firstAnchorChecked = false;
+    let endMarkerFound = false;
+    const transactions = [];
+    const rawLines = [];
+
+    pageLoop:
+    for (let p = 2; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const items = content.items
+        .map(it => ({ text: it.str, x: it.transform[4], y: it.transform[5] }))
+        .filter(it => it.text.trim() !== '');
+      if (!items.length) continue;
+      const lines = groupLines(items);
+
+      for (const line of lines) {
+        if (isEndMarkerLine(line)) { endMarkerFound = true; break pageLoop; }
+
+        const anchor = getAnchorInfo(line);
+        if (!anchor) continue;
+
+        if (!firstAnchorChecked) {
+          firstAnchorChecked = true;
+          if (!fingerprintOk(anchor)) {
+            throw new ParseError('layout_changed', 'Unsupported or changed Jupiter statement format detected.');
+          }
+        }
+
+        const dateRaw = anchor.dateItem.text.trim();
+        const description = anchor.middleItems.map(i => i.text).join(' ').replace(/\s+/g,' ').trim();
+        const amountRaw = anchor.amountItem.text.trim();
+        const amount = parseAmountToken(amountRaw);
+        const timeRaw = findTimeForAnchor(line, lines, anchor.dateItem.x);
+
+        rawLines.push(dateRaw + '  |  ' + (timeRaw || '(no time found)') + '  |  ' + (description || '(blank description)') + '  |  ' + amountRaw);
+
+        const uncertain = !description || !(amount > 0) || isNaN(amount);
+        const type = uncertain ? 'Review' : classify(description);
+
+        transactions.push({
+          date: toIsoDate(dateRaw),
+          time: timeRaw || '',
+          description: description,
+          amount: isNaN(amount) ? 0 : amount,
+          type: type,
+          statementPeriod: period
+        });
+      }
+    }
+
+    if (transactions.length === 0) {
+      throw new ParseError('no_transactions', 'No transactions could be found in this statement. The transaction pages may be missing, or the layout may be unrecognized.');
+    }
+
+    const actualDebit = transactions.filter(t => t.type === 'Debit').reduce((s,t) => s + t.amount, 0);
+    const actualCredit = transactions.filter(t => t.type === 'Credit').reduce((s,t) => s + t.amount, 0);
+
+    let validation = null;
+    if (summary) {
+      const expectedDebit = summary.spends;
+      const expectedCredit = summary.repayments + summary.refundsAndReversals + summary.waivers;
+      const debitDiff = Math.round((actualDebit - expectedDebit) * 100) / 100;
+      const creditDiff = Math.round((actualCredit - expectedCredit) * 100) / 100;
+      const passed = Math.abs(debitDiff) <= 0.01 && Math.abs(creditDiff) <= 0.01;
+      validation = { expectedDebit, expectedCredit, actualDebit, actualCredit, debitDiff, creditDiff, passed };
+    }
+
+    return { fileName: file.name, period, transactions, rawLines, actualDebit, actualCredit, validation, endMarkerFound };
+  }
+
+  // ---------- UI state ----------
+  let allFileResults = [];
+  let rowSeq = 0;
+
+  const dropzone = document.getElementById('jcb-dropzone');
+  const fileInput = document.getElementById('jcb-fileInput');
+  const bannerArea = document.getElementById('jcb-bannerArea');
+  const loadingView = document.getElementById('jcb-loadingView');
+  const summaryBar = document.getElementById('jcb-summaryBar');
+  const tableSection = document.getElementById('jcb-tableSection');
+  const txBody = document.getElementById('jcb-txBody');
+  const debugPanel = document.getElementById('jcb-debugPanel');
+  const debugContent = document.getElementById('jcb-debugContent');
+  const footer = document.getElementById('jcb-footer');
+  const dzText = document.getElementById('jcb-dzText');
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+  fileInput.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) handleFile(f);
+    fileInput.value = '';
+  });
+
+  function showBanner(kind, message){
+    const div = document.createElement('div');
+    div.className = 'jcb-banner ' + kind;
+    div.innerHTML = '<span class="jcb-banner-close">&times;</span>' + escapeHtml(message);
+    div.querySelector('.jcb-banner-close').addEventListener('click', () => div.remove());
+    bannerArea.appendChild(div);
+  }
+  function clearTransientBanners(){ bannerArea.innerHTML = ''; }
+  function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escapeAttr(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+
+  async function handleFile(file){
+    clearTransientBanners();
+    loadingView.hidden = false;
+    try {
+      const result = await parseFile(file);
+      allFileResults.push(result);
+      result.transactions.forEach(t => addRow(t, result.period));
+      renderAll();
+
+      if (!result.endMarkerFound) {
+        showBanner('warning', '"End of Transactions" marker not found in ' + file.name + '. The statement format may have changed — ' + result.transactions.length + ' transaction row(s) were still extracted; please double-check them before trusting this file.');
+      }
+      if (result.validation && !result.validation.passed) {
+        showBanner('warning',
+          'Validation failed for ' + file.name + ': expected debit ₹' + result.validation.expectedDebit.toFixed(2) +
+          ' vs parsed ₹' + result.validation.actualDebit.toFixed(2) + ' (diff ₹' + result.validation.debitDiff.toFixed(2) + '); ' +
+          'expected credit ₹' + result.validation.expectedCredit.toFixed(2) + ' vs parsed ₹' + result.validation.actualCredit.toFixed(2) +
+          ' (diff ₹' + result.validation.creditDiff.toFixed(2) + '). Review the rows below before exporting.');
+      } else if (!result.validation) {
+        showBanner('warning', 'Could not locate the statement summary figures on page 1 of ' + file.name + ', so this file\'s totals could not be validated. The extracted rows are still shown below.');
+      }
+    } catch (err) {
+      if (err && err.code === 'layout_changed') {
+        showBanner('error', 'Unsupported or changed Jupiter statement format detected.');
+      } else {
+        showBanner('error', (err && err.message) || 'Could not read this PDF.');
+      }
+    } finally {
+      loadingView.hidden = true;
+    }
+  }
+
+  function addRow(t, period){
+    rowSeq += 1;
+    const tr = document.createElement('tr');
+    tr.dataset.rowId = rowSeq;
+    if (t.type === 'Review') tr.classList.add('review-row');
+    tr.innerHTML =
+      '<td><input value="' + escapeAttr(t.date) + '" class="cell-date"></td>' +
+      '<td><input value="' + escapeAttr(t.time) + '" class="cell-time"></td>' +
+      '<td><input value="' + escapeAttr(t.description) + '" class="cell-desc"></td>' +
+      '<td><input value="' + escapeAttr(t.amount) + '" class="cell-amt" inputmode="decimal"></td>' +
+      '<td><select class="cell-type">' +
+        '<option value="Debit"' + (t.type==='Debit'?' selected':'') + '>Debit</option>' +
+        '<option value="Credit"' + (t.type==='Credit'?' selected':'') + '>Credit</option>' +
+        '<option value="Review"' + (t.type==='Review'?' selected':'') + '>Review</option>' +
+      '</select></td>' +
+      '<td><input value="' + escapeAttr(period || t.statementPeriod || '') + '" class="cell-period"></td>' +
+      '<td><button class="jcb-row-del" title="Remove row">&times;</button></td>';
+    tr.querySelector('.jcb-row-del').addEventListener('click', () => { tr.remove(); renderAll(); });
+    tr.querySelector('.cell-type').addEventListener('change', e => {
+      tr.classList.toggle('review-row', e.target.value === 'Review');
+      renderAll();
+    });
+    tr.querySelectorAll('input').forEach(el => el.addEventListener('input', renderAll));
+    txBody.appendChild(tr);
+  }
+
+  document.getElementById('jcb-addRowBtn').addEventListener('click', () => {
+    addRow({ date:'', time:'', description:'', amount:'', type:'Debit', statementPeriod: '' }, '');
+    renderAll();
+  });
+
+  document.getElementById('jcb-startOverBtn').addEventListener('click', () => {
+    allFileResults = [];
+    txBody.innerHTML = '';
+    clearTransientBanners();
+    renderAll();
+  });
+
+  document.getElementById('jcb-downloadBtn').addEventListener('click', () => {
+    const headers = ['Date','Time','Description','Amount','Type','StatementPeriod'];
+    const lines = [headers.join(',')];
+    txBody.querySelectorAll('tr').forEach(tr => {
+      const date = tr.querySelector('.cell-date').value;
+      const time = tr.querySelector('.cell-time').value;
+      const desc = tr.querySelector('.cell-desc').value;
+      const amtRaw = parseFloat(tr.querySelector('.cell-amt').value);
+      const amt = (isNaN(amtRaw) ? 0 : amtRaw).toFixed(2);
+      const type = tr.querySelector('.cell-type').value;
+      const period = tr.querySelector('.cell-period').value;
+      lines.push([date, time, desc, amt, type, period].map(csvEscape).join(','));
+    });
+    const csv = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = buildCsvFilename();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  function buildCsvFilename(){
+    if (allFileResults.length === 0) return 'transactions.csv';
+    const base = allFileResults[0].fileName.replace(/\.pdf$/i, '');
+    if (allFileResults.length === 1) return base + '_transactions.csv';
+    return base + '_and_' + (allFileResults.length - 1) + '_more_transactions.csv';
+  }
+
+  function csvEscape(v){
+    v = String(v ?? '');
+    if (/[",\n]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
+    return v;
+  }
+
+  function renderAll(){
+    const rows = Array.from(txBody.querySelectorAll('tr'));
+    const hasRows = rows.length > 0;
+
+    summaryBar.hidden = !hasRows;
+    tableSection.hidden = !hasRows;
+    footer.hidden = !hasRows;
+    debugPanel.hidden = allFileResults.length === 0;
+    dzText.textContent = allFileResults.length ? 'Add another statement PDF' : 'Drop a Jupiter Edge CSB statement PDF, or click to browse';
+
+    if (!hasRows) return;
+
+    // live totals from the current (possibly edited) table
+    let debitTotal = 0, creditTotal = 0;
+    const byPeriod = {};
+    rows.forEach(tr => {
+      const amt = parseFloat(tr.querySelector('.cell-amt').value) || 0;
+      const type = tr.querySelector('.cell-type').value;
+      const period = tr.querySelector('.cell-period').value || 'Unknown period';
+      if (type === 'Debit') debitTotal += amt;
+      else if (type === 'Credit') creditTotal += amt;
+      if (!byPeriod[period]) byPeriod[period] = { debit: 0, credit: 0, count: 0 };
+      byPeriod[period].count += 1;
+      if (type === 'Debit') byPeriod[period].debit += amt;
+      else if (type === 'Credit') byPeriod[period].credit += amt;
+    });
+
+    document.getElementById('jcb-rowCount').textContent = rows.length;
+    document.getElementById('jcb-debitTotal').textContent = '₹' + debitTotal.toFixed(2);
+    document.getElementById('jcb-creditTotal').textContent = '₹' + creditTotal.toFixed(2);
+
+    const periods = Object.keys(byPeriod);
+    document.getElementById('jcb-periodVal').textContent = periods.length === 1 ? periods[0] : (periods.length + ' periods');
+
+    // live per-period validation against each file's stored expected summary
+    let allPass = true, anyValidation = false;
+    allFileResults.forEach(r => {
+      if (!r.validation) return;
+      anyValidation = true;
+      const live = byPeriod[r.period] || { debit: 0, credit: 0 };
+      const debitOk = Math.abs(live.debit - r.validation.expectedDebit) <= 0.01;
+      const creditOk = Math.abs(live.credit - r.validation.expectedCredit) <= 0.01;
+      if (!debitOk || !creditOk) allPass = false;
+    });
+    const valEl = document.getElementById('jcb-validationVal');
+    if (!anyValidation) {
+      valEl.textContent = 'Unavailable';
+      valEl.className = 'jcb-stat-num';
+    } else if (allPass) {
+      valEl.textContent = 'All Passed';
+      valEl.className = 'jcb-stat-num ok';
+    } else {
+      valEl.textContent = 'Needs review';
+      valEl.className = 'jcb-stat-num fail';
+    }
+
+    renderDebugPanel(byPeriod);
+  }
+
+  function renderDebugPanel(byPeriod){
+    debugContent.innerHTML = '';
+    allFileResults.forEach(r => {
+      const live = byPeriod[r.period] || { debit: 0, credit: 0, count: 0 };
+      let validationHtml;
+      if (!r.validation) {
+        validationHtml = '<span>Unavailable (could not read page 1 summary figures)</span>';
+      } else {
+        const debitOk = Math.abs(live.debit - r.validation.expectedDebit) <= 0.01;
+        const creditOk = Math.abs(live.credit - r.validation.expectedCredit) <= 0.01;
+        const passed = debitOk && creditOk;
+        validationHtml = passed
+          ? '<span class="jcb-valid-ok">Validation Passed</span>'
+          : '<span class="jcb-valid-fail">Validation Failed</span> — expected debit ₹' + r.validation.expectedDebit.toFixed(2) +
+            ' vs current ₹' + live.debit.toFixed(2) + '; expected credit ₹' + r.validation.expectedCredit.toFixed(2) +
+            ' vs current ₹' + live.credit.toFixed(2);
+      }
+
+      const card = document.createElement('div');
+      card.className = 'jcb-debug-card';
+      card.innerHTML =
+        '<div class="jcb-debug-row"><b>Parser:</b> ' + PARSER_VERSION + '</div>' +
+        '<div class="jcb-debug-row"><b>File:</b> ' + escapeHtml(r.fileName) + '</div>' +
+        '<div class="jcb-debug-row"><b>Statement period:</b> ' + escapeHtml(r.period) + '</div>' +
+        '<div class="jcb-debug-row"><b>Transaction count (as parsed):</b> ' + r.transactions.length + '</div>' +
+        '<div class="jcb-debug-row"><b>Debit total (as parsed):</b> ₹' + r.actualDebit.toFixed(2) + '</div>' +
+        '<div class="jcb-debug-row"><b>Credit total (as parsed):</b> ₹' + r.actualCredit.toFixed(2) + '</div>' +
+        '<div class="jcb-debug-row"><b>Validation:</b> ' + validationHtml + '</div>' +
+        '<div class="jcb-debug-row"><b>End of Transactions marker:</b> ' + (r.endMarkerFound ? 'Found' : 'Not found') + '</div>' +
+        '<details><summary>Raw detected transaction lines (' + r.rawLines.length + ')</summary><pre>' + escapeHtml(r.rawLines.join('\n')) + '</pre></details>';
+      debugContent.appendChild(card);
+    });
+  }
+})();
+</script>
+</body></html>

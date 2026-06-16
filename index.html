@@ -1,3 +1,9 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Statement → CSV — Card Index</title>
 <style>
   :root{
     --paper:#F6F3EC;
@@ -9,17 +15,19 @@
     --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
-  .ysc-app *{ box-sizing:border-box; }
-  .ysc-app{
+  html,body{ margin:0; padding:0; }
+  *{ box-sizing:border-box; }
+
+  .hub-app{
     font-family:var(--sans);
     background:var(--paper);
     color:var(--ink);
-    padding:28px 22px 40px;
+    padding:28px 22px 48px;
     max-width:980px;
     margin:0 auto;
     line-height:1.45;
   }
-  .ysc-eyebrow{
+  .hub-eyebrow{
     font-family:var(--mono);
     text-transform:uppercase;
     letter-spacing:.14em;
@@ -28,45 +36,17 @@
     color:var(--brass);
     margin-bottom:8px;
   }
-  .ysc-title{
+  .hub-title{
     font-family:var(--mono);
     font-weight:700;
-    font-size:clamp(20px,4vw,28px);
+    font-size:clamp(22px,4.5vw,30px);
     letter-spacing:-0.01em;
     margin:0 0 10px;
   }
-  .ysc-subtitle{ font-size:14px; color:rgba(27,36,32,0.72); max-width:520px; margin:0 0 26px; }
+  .hub-subtitle{ font-size:14px; color:rgba(27,36,32,0.72); max-width:560px; margin:0 0 26px; }
 
-  .ysc-dropzone{
-    border:2px dashed var(--brass);
-    border-radius:10px;
-    padding:46px 22px;
-    text-align:center;
-    background:rgba(173,138,78,0.06);
-    cursor:pointer;
-    transition:background .15s ease, border-color .15s ease;
-  }
-  .ysc-dropzone:hover{ background:rgba(173,138,78,0.10); }
-  .ysc-dropzone.dragover{ background:rgba(31,75,67,0.08); border-color:var(--teal); }
-  .ysc-dz-icon{ font-size:26px; color:var(--teal); margin-bottom:10px; }
-  .ysc-dz-text{ font-weight:600; font-size:15px; }
-  .ysc-dz-sub{ font-size:12.5px; color:rgba(27,36,32,0.6); margin-top:6px; }
-
-  .ysc-error{
-    margin-top:16px;
-    background:rgba(156,59,46,0.08);
-    border:1px solid rgba(156,59,46,0.35);
-    color:var(--rust);
-    padding:12px 14px;
-    border-radius:8px;
-    font-size:13.5px;
-  }
-
-  .ysc-loading{ text-align:center; padding:60px 0; font-family:var(--mono); font-size:13px; letter-spacing:.05em; color:var(--teal); animation:ysc-pulse 1.4s ease-in-out infinite; }
-  @media (prefers-reduced-motion: reduce){ .ysc-loading{ animation:none; } }
-  @keyframes ysc-pulse{ 0%,100%{opacity:.45;} 50%{opacity:1;} }
-
-  .ysc-perforation{
+  /* perforated tear-strip, echoes the divider used inside each converter */
+  .hub-perforation{
     height:12px;
     background:var(--teal);
     background-image:radial-gradient(circle at center, var(--paper) 5px, transparent 5.5px);
@@ -76,430 +56,148 @@
     border-radius:4px 4px 0 0;
     margin-bottom:0;
   }
-
-  .ysc-review-header{
+  .hub-index-header{
     background:var(--teal);
     color:var(--paper);
-    padding:16px 18px;
+    padding:14px 18px;
     border-radius:0 0 8px 8px;
     display:flex;
     justify-content:space-between;
-    align-items:flex-end;
+    align-items:center;
     flex-wrap:wrap;
-    gap:14px;
+    gap:10px;
     margin-bottom:18px;
   }
-  .ysc-review-header .ysc-eyebrow{ color:rgba(246,243,236,0.7); }
-  .ysc-period{ font-family:var(--mono); font-size:15px; font-weight:700; }
-  .ysc-stats{ display:flex; gap:18px; }
-  .ysc-stat-num{ font-family:var(--mono); font-weight:700; font-size:16px; display:block; }
-  .ysc-stat-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:rgba(246,243,236,0.65); }
+  .hub-index-header .hub-eyebrow{ color:rgba(246,243,236,0.7); margin-bottom:0; }
+  .hub-count{ font-family:var(--mono); font-size:12px; color:rgba(246,243,236,0.75); }
 
-  .ysc-table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
-  .ysc-table{ width:100%; border-collapse:collapse; min-width:680px; font-size:13.5px; }
-  .ysc-table thead th{
+  .hub-table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+  .hub-table{ width:100%; border-collapse:collapse; min-width:620px; font-size:13.5px; }
+  .hub-table thead th{
     text-align:left;
     font-family:var(--mono);
     font-size:10.5px;
     text-transform:uppercase;
     letter-spacing:.08em;
     color:rgba(27,36,32,0.6);
-    padding:10px 10px;
+    padding:10px 14px;
     border-bottom:1px solid var(--line);
     background:rgba(173,138,78,0.07);
   }
-  .ysc-table td{ border-bottom:1px solid var(--line); padding:2px 4px; vertical-align:middle; }
-  .ysc-table input, .ysc-table select{
-    width:100%;
-    border:none;
-    background:transparent;
-    font-family:var(--sans);
-    font-size:13.5px;
-    color:var(--ink);
-    padding:8px 6px;
-    border-radius:5px;
-  }
-  .ysc-table input:focus, .ysc-table select:focus{ outline:none; background:rgba(173,138,78,0.10); box-shadow:inset 0 -2px 0 var(--brass); }
-  .ysc-table .cell-date, .ysc-table .cell-amt{ font-family:var(--mono); }
-  .ysc-table .cell-amt{ text-align:right; }
-  .ysc-table th:nth-child(1), .ysc-table td:nth-child(1){ width:104px; }
-  .ysc-table th:nth-child(3), .ysc-table td:nth-child(3){ width:170px; }
-  .ysc-table th:nth-child(4), .ysc-table td:nth-child(4){ width:100px; }
-  .ysc-table th:nth-child(5), .ysc-table td:nth-child(5){ width:96px; }
-  .ysc-table th:nth-child(6), .ysc-table td:nth-child(6){ width:34px; }
-  .ysc-row-del{ background:none; border:none; color:rgba(27,36,32,0.4); font-size:16px; cursor:pointer; padding:4px 8px; border-radius:5px; }
-  .ysc-row-del:hover{ color:var(--rust); background:rgba(156,59,46,0.08); }
-
-  .ysc-btn-outline, .ysc-btn-primary{
+  .hub-table td{ border-bottom:1px solid var(--line); padding:13px 14px; vertical-align:middle; }
+  .hub-row{ cursor:pointer; transition:background .12s ease; }
+  .hub-row:hover{ background:rgba(173,138,78,0.10); }
+  .hub-row:last-child td{ border-bottom:none; }
+  .hub-card-name{ font-weight:700; }
+  .hub-card-issuer{ color:rgba(27,36,32,0.65); }
+  .hub-card-format{ color:rgba(27,36,32,0.6); font-size:12.5px; }
+  .hub-row-cta{ text-align:right; white-space:nowrap; }
+  .hub-row-cta a{
     font-family:var(--mono);
-    font-size:12.5px;
+    font-size:12px;
     font-weight:700;
     text-transform:uppercase;
-    letter-spacing:.05em;
-    padding:11px 18px;
-    border-radius:7px;
-    cursor:pointer;
-    border:1px solid var(--teal);
+    letter-spacing:.04em;
+    color:var(--teal);
+    text-decoration:none;
   }
-  .ysc-btn-outline{ background:transparent; color:var(--teal); }
-  .ysc-btn-outline:hover{ background:rgba(31,75,67,0.06); }
-  .ysc-btn-primary{ background:var(--teal); color:var(--paper); }
-  .ysc-btn-primary:hover{ background:#173e37; }
+  .hub-row:hover .hub-row-cta a{ text-decoration:underline; }
 
-  .ysc-addrow{ margin-top:14px; }
-
-  .ysc-review-footer{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-top:22px;
-    gap:12px;
-    flex-wrap:wrap;
+  .hub-footnote{
+    margin-top:18px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:.02em;
+    color:rgba(27,36,32,0.5);
   }
 
-  .ysc-debug{ margin-top:24px; font-size:12.5px; color:rgba(27,36,32,0.6); }
-  .ysc-debug summary{ cursor:pointer; font-family:var(--mono); letter-spacing:.04em; }
-  .ysc-debug pre{ white-space:pre-wrap; background:rgba(27,36,32,0.04); border:1px solid var(--line); border-radius:6px; padding:10px; margin-top:8px; max-height:200px; overflow:auto; }
+  .hub-empty{ padding:40px 14px; text-align:center; color:rgba(27,36,32,0.6); font-size:13.5px; }
 
   @media (max-width:560px){
-    .ysc-app{ padding:20px 14px 32px; }
-    .ysc-review-header{ flex-direction:column; align-items:flex-start; }
+    .hub-app{ padding:20px 14px 36px; }
+    .hub-index-header{ flex-direction:column; align-items:flex-start; }
+    .hub-card-format{ display:none; }
   }
 </style>
+</head>
+<body>
 
-<div class="ysc-app">
+<div class="hub-app">
+  <div class="hub-eyebrow">Statement → Ledger</div>
+  <h1 class="hub-title">Pick your card</h1>
+  <p class="hub-subtitle">Each card below has its own parser tuned to that bank's statement layout. Open one, drop in the PDF, check the rows, download the CSV — everything happens in your browser.</p>
 
-  <div id="ysc-uploadView">
-    <div class="ysc-eyebrow">Statement → Ledger</div>
-    <h1 class="ysc-title">Card statement to CSV</h1>
-    <p class="ysc-subtitle">Built for YES Bank ACE Rupay e-statements (digital/text PDF, not scanned). Drop the PDF, check the rows, download the CSV. Nothing leaves your browser — parsing happens locally.</p>
-    <div class="ysc-dropzone" id="ysc-dropzone">
-      <div class="ysc-dz-icon">⬆</div>
-      <div class="ysc-dz-text">Drop PDF here, or click to browse</div>
-      <div class="ysc-dz-sub">.pdf only</div>
-      <input type="file" id="ysc-fileInput" accept="application/pdf,.pdf" hidden>
-    </div>
-    <div class="ysc-error" id="ysc-uploadError" hidden></div>
+  <div class="hub-perforation"></div>
+  <div class="hub-index-header">
+    <div class="hub-eyebrow">Card Index</div>
+    <div class="hub-count" id="hub-count">0 cards</div>
   </div>
 
-  <div id="ysc-loadingView" hidden>
-    <div class="ysc-loading">READING PDF…</div>
+  <div class="hub-table-wrap">
+    <table class="hub-table">
+      <thead>
+        <tr><th>Card</th><th>Issuer</th><th>Format</th><th></th></tr>
+      </thead>
+      <tbody id="hub-tbody"></tbody>
+    </table>
   </div>
 
-  <div id="ysc-reviewView" hidden>
-    <div class="ysc-perforation"></div>
-    <div class="ysc-review-header">
-      <div>
-        <div class="ysc-eyebrow" id="ysc-fileLabel">FILE</div>
-        <div class="ysc-period" id="ysc-periodLabel">—</div>
-      </div>
-      <div class="ysc-stats">
-        <div><span class="ysc-stat-num" id="ysc-rowCount">0</span><span class="ysc-stat-label">rows</span></div>
-        <div><span class="ysc-stat-num" id="ysc-debitTotal">₹0.00</span><span class="ysc-stat-label">debits</span></div>
-        <div><span class="ysc-stat-num" id="ysc-creditTotal">₹0.00</span><span class="ysc-stat-label">credits</span></div>
-      </div>
-    </div>
-
-    <div class="ysc-table-wrap">
-      <table class="ysc-table">
-        <thead>
-          <tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Type</th><th></th></tr>
-        </thead>
-        <tbody id="ysc-txBody"></tbody>
-      </table>
-    </div>
-    <button class="ysc-btn-outline ysc-addrow" id="ysc-addRowBtn">+ Add row</button>
-
-    <details class="ysc-debug">
-      <summary>Raw detected lines (for troubleshooting)</summary>
-      <pre id="ysc-debugText"></pre>
-    </details>
-
-    <div class="ysc-review-footer">
-      <button class="ysc-btn-outline" id="ysc-startOverBtn">Start over</button>
-      <button class="ysc-btn-primary" id="ysc-downloadBtn">Download CSV</button>
-    </div>
-  </div>
-
+  <div class="hub-footnote">New cards get added to this list as their parsers are built.</div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script>
-(function(){
-  const pdfjsLib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
-  if (pdfjsLib) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-  }
-
-  const dropzone   = document.getElementById('ysc-dropzone');
-  const fileInput  = document.getElementById('ysc-fileInput');
-  const uploadView = document.getElementById('ysc-uploadView');
-  const reviewView = document.getElementById('ysc-reviewView');
-  const loadingView= document.getElementById('ysc-loadingView');
-  const uploadError= document.getElementById('ysc-uploadError');
-  const txBody     = document.getElementById('ysc-txBody');
-  const debugText  = document.getElementById('ysc-debugText');
-
-  let currentFileName = 'statement';
-  let lastDebugLines = '';
-
-  dropzone.addEventListener('click', () => fileInput.click());
-  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
-  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-  dropzone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropzone.classList.remove('dragover');
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f) handleFile(f);
-  });
-  fileInput.addEventListener('change', e => {
-    const f = e.target.files[0];
-    if (f) handleFile(f);
-  });
-
-  async function handleFile(file){
-    uploadError.hidden = true;
-    if (!/\.pdf$/i.test(file.name)) {
-      uploadError.textContent = "That doesn't look like a PDF. Please choose a PDF statement.";
-      uploadError.hidden = false;
-      return;
+  // Add a new card here as it's built — that's the only edit this page ever needs.
+  const CARDS = [
+    {
+      name: "YES BANK KreditPe ACE",
+      issuer: "YES Bank",
+      format: "Rupay e-statement (digital PDF)",
+      file: "yesbank-ace.html"
+    },
+    {
+      name: "Jupiter CSB edge+",
+      issuer: "CSB Bank, via Jupiter",
+      format: "Edge CSB statement — supports multiple PDFs",
+      file: "jupiter-csb.html"
     }
-    currentFileName = file.name.replace(/\.pdf$/i,'');
-    uploadView.hidden = true;
-    loadingView.hidden = false;
-    try {
-      if (!pdfjsLib) throw new Error('PDF engine failed to load — check your internet connection and retry');
-      const buf = await file.arrayBuffer();
-      const pages = await extractPages(buf);
-      const rows = parseTransactions(pages);
-      renderReview(rows);
-      loadingView.hidden = true;
-      reviewView.hidden = false;
-    } catch (err) {
-      loadingView.hidden = true;
-      uploadView.hidden = false;
-      uploadError.textContent = 'Could not read this PDF (' + err.message + '). It may be a scanned image rather than a digital export, or a different statement layout.';
-      uploadError.hidden = false;
-    }
-  }
+  ];
 
-  async function extractPages(buf){
-    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    const pages = [];
-    for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      pages.push(
-        content.items
-          .map(it => ({ text: it.str, x: it.transform[4], y: it.transform[5] }))
-          .filter(it => it.text.trim() !== '')
-      );
-    }
-    return pages;
-  }
+  const tbody = document.getElementById('hub-tbody');
+  const countEl = document.getElementById('hub-count');
 
-  function groupLines(items, yTol){
-    yTol = yTol || 2.5;
-    const sorted = [...items].sort((a,b) => b.y - a.y);
-    const lines = [];
-    for (const it of sorted) {
-      let line = lines.find(l => Math.abs(l.y - it.y) <= yTol);
-      if (!line) { line = { y: it.y, items: [] }; lines.push(line); }
-      line.items.push(it);
-    }
-    lines.forEach(l => l.items.sort((a,b) => a.x - b.x));
-    lines.sort((a,b) => b.y - a.y);
-    return lines;
-  }
+  if (CARDS.length === 0) {
+    const wrap = document.querySelector('.hub-table-wrap');
+    wrap.innerHTML = '<div class="hub-empty">No cards added yet.</div>';
+  } else {
+    CARDS.forEach(card => {
+      const tr = document.createElement('tr');
+      tr.className = 'hub-row';
+      tr.tabIndex = 0;
+      tr.innerHTML =
+        '<td class="hub-card-name"></td>' +
+        '<td class="hub-card-issuer"></td>' +
+        '<td class="hub-card-format"></td>' +
+        '<td class="hub-row-cta"><a></a></td>';
+      tr.querySelector('.hub-card-name').textContent = card.name;
+      tr.querySelector('.hub-card-issuer').textContent = card.issuer;
+      tr.querySelector('.hub-card-format').textContent = card.format;
+      const link = tr.querySelector('.hub-row-cta a');
+      link.href = card.file;
+      link.textContent = 'Open →';
 
-  function isHeaderLine(line){
-    const joined = line.items.map(i => i.text).join(' ');
-    return /date/i.test(joined) && /transaction/i.test(joined) && /amount/i.test(joined);
-  }
-  const BOUNDARY_RE = /Points earned so far|End of the Statement|YES TOUCH|PhoneBanking|Credit Card Statement|CIN\s*:|^SMS\b/i;
-  function isBoundaryLine(line){
-    return BOUNDARY_RE.test(line.items.map(i => i.text).join(' '));
-  }
-  function isAnchorLine(line){
-    return /^\d{2}\/\d{2}\/\d{4}$/.test(line.items[0].text.trim());
-  }
+      tr.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'A') window.location.href = card.file;
+      });
+      tr.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') window.location.href = card.file;
+      });
 
-  function parseTransactions(pages){
-    let categoryStartX = null, amountStartX = null;
-
-    outer:
-    for (const items of pages) {
-      const lines = groupLines(items);
-      for (const line of lines) {
-        if (isHeaderLine(line)) {
-          const merchantItem = line.items.find(i => /merchant/i.test(i.text));
-          const amountItem   = line.items.find(i => /^amount/i.test(i.text.trim()));
-          if (merchantItem) categoryStartX = merchantItem.x - 2;
-          if (amountItem)   amountStartX   = amountItem.x - 2;
-          if (categoryStartX != null && amountStartX != null) break outer;
-        }
-      }
-    }
-
-    const rows = [];
-    const debugLines = [];
-    const ROW_TOL = 11;
-
-    for (const items of pages) {
-      const lines = groupLines(items);
-      const usable = lines.filter(l => !isHeaderLine(l) && !isBoundaryLine(l));
-      const anchors = usable.filter(isAnchorLine);
-      const orphans = usable.filter(l => !isAnchorLine(l));
-
-      const groups = anchors.map(a => ({ anchor: a, members: [a] }));
-
-      for (const orphan of orphans) {
-        let best = null, bestDist = Infinity;
-        for (const g of groups) {
-          const d = Math.abs(g.anchor.y - orphan.y);
-          if (d < bestDist) { bestDist = d; best = g; }
-        }
-        if (best && bestDist <= ROW_TOL) best.members.push(orphan);
-      }
-
-      for (const g of groups) {
-        g.members.sort((a,b) => b.y - a.y);
-        const flatItems = [];
-        for (const line of g.members) for (const it of line.items) flatItems.push(it);
-
-        const dateItem = flatItems.find(it => /^\d{2}\/\d{2}\/\d{4}$/.test(it.text.trim()));
-        if (!dateItem) continue;
-
-        const descTokens = [], catTokens = [], amtTokens = [];
-        for (const it of flatItems) {
-          if (it === dateItem) continue;
-          if (categoryStartX != null && amountStartX != null) {
-            if (it.x < categoryStartX) descTokens.push(it.text);
-            else if (it.x < amountStartX) catTokens.push(it.text);
-            else amtTokens.push(it.text);
-          } else {
-            descTokens.push(it.text);
-          }
-        }
-
-        let amountMatch = amtTokens.join(' ').replace(/\s+/g,' ').trim().match(/([\d,]+\.\d{2})\s*(Dr|Cr)/i);
-        if (!amountMatch) {
-          amountMatch = flatItems.map(i=>i.text).join(' ').match(/([\d,]+\.\d{2})\s*(Dr|Cr)/i);
-        }
-        if (!amountMatch) continue;
-
-        debugLines.push(flatItems.map(i=>i.text).join(' '));
-
-        let description = descTokens.join(' ').replace(/\s+/g,' ').trim();
-        let category = catTokens.join(' ').replace(/\s+/g,' ').trim();
-
-        if (!category) {
-          const tailMatch = description.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,4})\s*$/);
-          if (tailMatch) {
-            category = tailMatch[1].trim();
-            description = description.slice(0, tailMatch.index).trim();
-          }
-        }
-
-        const cleanDesc = description
-          .replace(/^UPI[_\-]?\s*/i, '')
-          .replace(/\s*-?\s*Ref\.?\s*No\b[:.]?.*$/i, '')
-          .replace(/\bIND\.?$/i, '')
-          .trim();
-
-        const amount = parseFloat(amountMatch[1].replace(/,/g,''));
-        const type = /cr/i.test(amountMatch[2]) ? 'Credit' : 'Debit';
-        const [d,m,y] = dateItem.text.trim().split('/');
-
-        rows.push({ date: `${y}-${m}-${d}`, description: cleanDesc || description, category, amount, type });
-      }
-    }
-
-    lastDebugLines = debugLines.join('\n');
-    return rows;
-  }
-
-  function renderReview(rows){
-    document.getElementById('ysc-fileLabel').textContent = currentFileName.toUpperCase();
-    document.getElementById('ysc-periodLabel').textContent =
-      rows.length ? (rows[0].date + '  →  ' + rows[rows.length-1].date) : 'No transactions detected';
-    debugText.textContent = lastDebugLines || '(no matching lines found)';
-    txBody.innerHTML = '';
-    rows.forEach(addRow);
-    updateStats();
-  }
-
-  function addRow(r){
-    r = r || { date:'', description:'', category:'', amount:'', type:'Debit' };
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td><input value="' + escapeAttr(r.date) + '" class="cell-date"></td>' +
-      '<td><input value="' + escapeAttr(r.description) + '" class="cell-desc"></td>' +
-      '<td><input value="' + escapeAttr(r.category) + '" class="cell-cat"></td>' +
-      '<td><input value="' + escapeAttr(r.amount) + '" class="cell-amt" inputmode="decimal"></td>' +
-      '<td><select class="cell-type">' +
-        '<option value="Debit"' + (r.type==='Debit' ? ' selected' : '') + '>Debit</option>' +
-        '<option value="Credit"' + (r.type==='Credit' ? ' selected' : '') + '>Credit</option>' +
-      '</select></td>' +
-      '<td><button class="ysc-row-del" title="Remove row">×</button></td>';
-    tr.querySelector('.ysc-row-del').addEventListener('click', () => { tr.remove(); updateStats(); });
-    tr.querySelectorAll('input,select').forEach(el => el.addEventListener('input', updateStats));
-    txBody.appendChild(tr);
-  }
-
-  function escapeAttr(s){
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-  }
-
-  function updateStats(){
-    let debit = 0, credit = 0;
-    const rowEls = txBody.querySelectorAll('tr');
-    rowEls.forEach(tr => {
-      const amt  = parseFloat(tr.querySelector('.cell-amt').value) || 0;
-      const type = tr.querySelector('.cell-type').value;
-      if (type === 'Credit') credit += amt; else debit += amt;
+      tbody.appendChild(tr);
     });
-    document.getElementById('ysc-rowCount').textContent = rowEls.length;
-    document.getElementById('ysc-debitTotal').textContent = '₹' + debit.toFixed(2);
-    document.getElementById('ysc-creditTotal').textContent = '₹' + credit.toFixed(2);
   }
 
-  document.getElementById('ysc-addRowBtn').addEventListener('click', () => { addRow(); updateStats(); });
-
-  document.getElementById('ysc-startOverBtn').addEventListener('click', () => {
-    reviewView.hidden = true;
-    uploadView.hidden = false;
-    fileInput.value = '';
-    txBody.innerHTML = '';
-  });
-
-  document.getElementById('ysc-downloadBtn').addEventListener('click', () => {
-    const headers = ['Date','Description','Category','Amount','Type'];
-    const lines = [headers.join(',')];
-    txBody.querySelectorAll('tr').forEach(tr => {
-      const date = tr.querySelector('.cell-date').value;
-      const desc = tr.querySelector('.cell-desc').value;
-      const cat  = tr.querySelector('.cell-cat').value;
-      const amt  = tr.querySelector('.cell-amt').value;
-      const type = tr.querySelector('.cell-type').value;
-      lines.push([date,desc,cat,amt,type].map(csvEscape).join(','));
-    });
-    const csv = lines.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = currentFileName + '_transactions.csv';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  });
-
-  function csvEscape(v){
-    v = String(v ?? '');
-    if (/[",\n]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
-    return v;
-  }
-})();
+  countEl.textContent = CARDS.length + (CARDS.length === 1 ? ' card' : ' cards');
 </script>
+
+</body>
+</html>
