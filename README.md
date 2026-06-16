@@ -1,28 +1,24 @@
 # Credit Card Statement Parser
 
-Convert Indian credit card PDF statements into normalized CSV transactions.
+Convert credit card PDF statements into CSV files.
 
 ## Supported Cards
 
-- YES Bank ACE RuPay
+- YES BANK KreditPe ACE
+- Jupiter CSB edge+
 
 ## Features
 
-- PDF upload
+- Browser-only processing
+- No server
+- No data upload
+- Editable transactions
 - CSV export
-- Local browser processing
-- No server required
 
-## Privacy
-
-All processing happens locally in your browser.
-
-## Roadmap
+## Upcoming Cards
 
 - HDFC Millennia
 - Amazon Pay ICICI
 - Airtel Axis
-- Axis Privilege
-- RBL Indian Oil
 - Scapia Federal
-- Spend Analytics Dashboard
+- RBL Indian Oil
