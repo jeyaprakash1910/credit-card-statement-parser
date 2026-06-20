@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HDFC Millennia → CSV</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --paper : #f5f0e8;
+    --white : #ffffff;
+    --teal  : #2c4a3e;
+    --teal-d: #1a3028;
+    --brass : #b8860b;
+    --rust  : #8b3a3a;
+    --ink   : #1a1a2e;
+    --rule  : #d4cfc4;
+    --mid   : #e8e3da;
+    --cr-bg : #edf6f1;   /* credit row tint */
+    --dr-bg : #fdf6f6;   /* debit row tint */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Courier New', Courier, monospace;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 28px 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  /* ── Header ── */
+  .hdr {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    border-bottom: 2px solid var(--teal);
+    padding-bottom: 10px;
+    margin-bottom: 22px;
+  }
+  .hdr h1 { color: var(--teal); font-size: 1.05rem; font-weight: 700; letter-spacing: .02em; }
+  .badge {
+    font-size: 0.62rem;
+    color: var(--white);
+    background: var(--brass);
+    padding: 2px 8px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+  }
+
+  /* ── Drop zone ── */
+  #dropzone {
+    border: 2px dashed var(--teal);
+    background: var(--white);
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    color: var(--teal);
+    margin-bottom: 18px;
+    transition: background .15s;
+  }
+  #dropzone.over  { background: #edf5f2; border-style: solid; }
+  #dropzone .dm   { font-size: 0.9rem; margin-bottom: 4px; }
+  #dropzone .ds   { font-size: 0.7rem; color: #888; }
+
+  /* ── Log ── */
+  #logBox {
+    background: var(--white);
+    border: 1px solid var(--rule);
+    padding: 7px 10px;
+    max-height: 120px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .lok  { color: var(--teal); }
+  .lerr { color: var(--rust); }
+
+  /* ── Section label ── */
+  .sec {
+    font-size: 0.68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--teal);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 4px;
+    margin: 20px 0 10px;
+  }
+
+  /* ── Hint bar ── */
+  .hint {
+    font-size: 0.68rem;
+    color: #666;
+    background: var(--white);
+    border: 1px solid var(--rule);
+    padding: 5px 10px;
+    margin-bottom: 8px;
+  }
+  .hint span { margin-right: 16px; }
+
+  /* ── Tables (shared) ── */
+  .tbl-wrap { overflow-x: auto; margin-bottom: 6px; }
+  table { border-collapse: collapse; width: 100%; background: var(--white); font-size: 0.72rem; }
+  th {
+    background: var(--teal);
+    color: var(--paper);
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 400;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  td { padding: 4px 8px; border-bottom: 1px solid var(--mid); }
+
+  /* ── Verification table ── */
+  .pass  { color: #2a7a56; font-weight: 700; }
+  .fail  { color: var(--rust); font-weight: 700; }
+  .num   { text-align: right; font-variant-numeric: tabular-nums; }
+  .dgood { color: #aaa; }
+  .dbad  { color: var(--rust); font-weight: 700; }
+
+  /* ── Editable transaction table ── */
+  #txnTbl tr.cr td { background: var(--cr-bg); }
+  #txnTbl tr.dr td { background: var(--dr-bg); }
+  #txnTbl tr.deleted td { opacity: .35; text-decoration: line-through; }
+
+  td[contenteditable] {
+    outline: none;
+    cursor: text;
+  }
+  td[contenteditable]:focus {
+    background: #fffde7 !important;
+    outline: 1px solid var(--brass);
+    outline-offset: -1px;
+  }
+  td[contenteditable]:hover:not(:focus) { background: #fffff0 !important; }
+
+  /* Type toggle */
+  .type-btn {
+    display: inline-block;
+    padding: 1px 8px;
+    cursor: pointer;
+    font-size: 0.68rem;
+    font-family: inherit;
+    font-weight: 700;
+    border: none;
+    letter-spacing: .04em;
+    user-select: none;
+  }
+  .type-btn.cr { background: var(--teal); color: var(--paper); }
+  .type-btn.dr { background: var(--rust); color: var(--paper); }
+  .type-btn:hover { opacity: .8; }
+
+  /* Bool toggle */
+  .bool-btn {
+    font-size: 0.68rem;
+    font-family: inherit;
+    background: none;
+    border: 1px solid var(--rule);
+    padding: 1px 6px;
+    cursor: pointer;
+    color: #555;
+  }
+  .bool-btn.yes { border-color: var(--teal); color: var(--teal); font-weight: 700; }
+
+  /* Delete / restore */
+  .del-btn {
+    background: none;
+    border: none;
+    color: var(--rust);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0 4px;
+    line-height: 1;
+    font-family: inherit;
+  }
+  .del-btn.undo { color: var(--brass); font-size: 0.75rem; }
+
+  /* Row # */
+  .rnum { color: #999; text-align: right; width: 28px; }
+
+  /* Description cell: wider */
+  .desc-cell { min-width: 220px; max-width: 340px; white-space: normal; word-break: break-word; }
+  .period-cell { font-size: 0.65rem; color: #888; white-space: nowrap; }
+
+  /* ── Reward section tables ── */
+  #rwdTable tr:nth-child(even) td,
+  #progTable tr:nth-child(even) td { background: #faf8f4; }
+
+  /* ── Bottom bar ── */
+  .bottom-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+  }
+  #dlBtn {
+    background: var(--teal);
+    color: var(--paper);
+    border: none;
+    padding: 10px 28px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+  #dlBtn:hover:not(:disabled) { background: var(--teal-d); }
+  #dlBtn:disabled { opacity: .35; cursor: default; }
+  .total-bar { font-size: 0.72rem; color: #555; }
+  .total-bar b { color: var(--ink); }
+</style>
+</head>
+<body>
+<div style="font-family:ui-monospace,monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:16px 22px 0;max-width:1100px;margin:0 auto;"><a href="index.html" style="color:#1F4B43;text-decoration:none;">&larr; All cards</a></div>
+
+<div class="hdr">
+  <h1>HDFC Millennia Credit Card Statement Parser</h1>
+  <span class="badge">PDF → CSV</span>
+</div>
+
+<div id="dropzone" onclick="document.getElementById('fi').click()">
+  <div class="dm">Drop statement PDFs here &nbsp;·&nbsp; or click to browse</div>
+  <div class="ds">Multiple files accepted — all months merged · runs in your browser, no data leaves your device</div>
+</div>
+<input id="fi" type="file" accept=".pdf" multiple style="display:none">
+
+<div id="logBox"></div>
+<div id="verWrap"></div>
+<div id="txnWrap"></div>
+<div id="rwdWrap"></div>
+
+<div class="bottom-bar">
+  <button id="dlBtn" disabled>⬇&nbsp; Download CSV</button>
+  <span id="totalBar" class="total-bar"></span>
+</div>
+
+<script>
+'use strict';
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let results = [];
+
+/* ═══════════════════════════════════════════════════════════════════
+   Logging
+═══════════════════════════════════════════════════════════════════ */
+function L(msg, cls='lok') {
+  const box = document.getElementById('logBox');
+  box.style.display = 'block';
+  const d = document.createElement('div');
+  d.className = cls; d.textContent = msg;
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   File drop / pick
+═══════════════════════════════════════════════════════════════════ */
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop',     e => { e.preventDefault(); dz.classList.remove('over'); runAll([...e.dataTransfer.files]); });
+document.getElementById('fi').addEventListener('change', e => runAll([...e.target.files]));
+
+async function runAll(files) {
+  ['logBox','verWrap','txnWrap','rwdWrap'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    if (id === 'logBox') el.style.display = 'none';
+  });
+  document.getElementById('dlBtn').disabled = true;
+  document.getElementById('totalBar').textContent = '';
+  results = [];
+
+  const pdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+  if (!pdfs.length) { L('No PDF files found.', 'lerr'); return; }
+  L(`Processing ${pdfs.length} file(s)…`);
+
+  for (const f of pdfs) {
+    try {
+      const res = await parseStatement(await f.arrayBuffer(), f.name);
+      results.push(res);
+      L(`✓ ${f.name}  →  ${res.period || '?'}  |  ${res.txns.length} txns  |  D: ${fmtN(res.tD)}  C: ${fmtN(res.tC)}`);
+    } catch (e) {
+      L(`✗ ${f.name}: ${e.message}`, 'lerr');
+      console.error(e);
+    }
+  }
+
+  results.sort((a, b) => dateMs(a.sDate) - dateMs(b.sDate));
+
+  if (results.length) {
+    renderVerification();
+    renderTransactions();
+    renderRewards();
+    document.getElementById('dlBtn').disabled = false;
+    updateTotalBar();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Helpers
+═══════════════════════════════════════════════════════════════════ */
+const MON = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+function dateMs(s) {
+  if (!s) return 0;
+  const m = s.match(/(\d{1,2})\s+(\w{3}),?\s+(\d{4})/);
+  return m ? new Date(+m[3], MON[m[2]]??0, +m[1]).getTime() : 0;
+}
+function fmtN(n) { return n.toLocaleString('en-IN', { minimumFractionDigits: 2 }); }
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PDF → text lines (Y-grouped, all pages)
+   Tolerance 4pt: handles baseline variance within a row;
+   rows are spaced ~12–15pt so no cross-row merging.
+═══════════════════════════════════════════════════════════════════ */
+async function extractLines(buf) {
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const all = [];
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const items = (await (await pdf.getPage(p)).getTextContent())
+      .items.filter(i => i.str && i.str.trim());
+    if (!items.length) continue;
+
+    const sorted = [...items].sort((a, b) => b.transform[5] - a.transform[5]);
+    const groups = [];
+    let cur = [sorted[0]], curY = sorted[0].transform[5];
+
+    for (let i = 1; i < sorted.length; i++) {
+      Math.abs(sorted[i].transform[5] - curY) <= 4
+        ? cur.push(sorted[i])
+        : (groups.push(cur), cur = [sorted[i]], curY = sorted[i].transform[5]);
+    }
+    groups.push(cur);
+
+    for (const g of groups) {
+      const t = g.sort((a,b) => a.transform[4]-b.transform[4])
+                 .map(i => i.str).join(' ').replace(/\s{2,}/g,' ').trim();
+      if (t) all.push(t);
+    }
+  }
+  return all;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Transaction line parser
+
+   Format: DD/MM/YYYY| HH:MM  [EMI ]  DESCRIPTION  [+ ]C/₹  AMOUNT  [l/●]
+
+   Edge cases:
+   • "BPPY CC PAYMENT … C 3173" — lazy regex finds LAST currency+amount
+   • Lakh amounts "1,01,720.00" — commas handled by [\d,]+
+   • EMI badge stripped before desc parsing
+   • PI dot ('l','●') stripped before amount parsing
+═══════════════════════════════════════════════════════════════════ */
+function parseTxnLine(line) {
+  const dtM = line.match(/^(\d{2}\/\d{2}\/\d{4})\|\s*(\d{2}:\d{2})\s+(.+)$/);
+  if (!dtM) return null;
+
+  const date = dtM[1], time = dtM[2];
+  let rest = dtM[3].trim();
+
+  let pi = false;
+  if (/\s+[l●•○]$/.test(rest)) { pi = true; rest = rest.replace(/\s+[l●•○]$/, '').trim(); }
+
+  let emi = false;
+  if (/^EMI\s+/i.test(rest)) { emi = true; rest = rest.replace(/^EMI\s+/i, '').trim(); }
+
+  // CREDIT: … + C/₹ amount
+  const crM = rest.match(/^(.+?)\s*\+\s*[C₹\u20B9]\s*([\d,]+(?:\.\d+)?)\s*$/);
+  if (crM) return { date, time, desc: crM[1].trim(), amt: +crM[2].replace(/,/g,''), type:'CREDIT', emi, pi };
+
+  // DEBIT: … C/₹ amount
+  const drM = rest.match(/^(.+?)\s+[C₹\u20B9]\s*([\d,]+(?:\.\d+)?)\s*$/);
+  if (drM) return { date, time, desc: drM[1].trim(), amt: +drM[2].replace(/,/g,''), type:'DEBIT', emi, pi };
+
+  return null;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Main statement parser
+═══════════════════════════════════════════════════════════════════ */
+async function parseStatement(buf, filename) {
+  const lines = await extractLines(buf);
+
+  // Billing period
+  let period = '';
+  for (const l of lines) {
+    const m = l.match(
+      /(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec),?\s*\d{4})\s*[-–]\s*(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec),?\s*\d{4})/
+    );
+    if (m) { period = `${m[1]} - ${m[2]}`; break; }
+  }
+
+  // Statement date
+  let sDate = '';
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('Statement Date')) {
+      for (let j = i; j <= Math.min(i+3, lines.length-1); j++) {
+        const m = lines[j].match(/(\d{2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec),?\s*\d{4})/);
+        if (m && !lines[j].includes(' - ')) { sDate = m[1]; break; }
+      }
+      if (sDate) break;
+    }
+  }
+
+  // Summary row for validation (4 C-amounts on one line; allow negative like "C-0.11")
+  //
+  // BUG GUARD: The "Past Dues" aging row (OVER LIMIT C0.00 | 3 MONTHS C0.00 | 2 MONTHS C0.00 | 1 MONTH C0.00)
+  // is extracted by PDF.js BEFORE the real summary row because in HDFC's 2-column PDF layout the Past Dues
+  // box sits at a higher Y coordinate than the main summary table. That row also has 4 consecutive C-amounts
+  // (all 0.00), so a blind search matches it first and returns 0.00 for both debit and credit.
+  //
+  // Fix: only start looking for 4 C-amounts AFTER the line containing "PREVIOUS STATEMENT"
+  // (the header of the real summary table). Stop at "TOTAL CREDIT LIMIT" to avoid overshooting.
+  let svDebit = null, svCredit = null;
+  let seenSummaryHdr = false;
+  for (const l of lines) {
+    if (l.includes('PREVIOUS STATEMENT') || l.includes('PURCHASES/DEBIT')) seenSummaryHdr = true;
+    if (!seenSummaryHdr) continue;
+    if (l.includes('TOTAL CREDIT LIMIT') || l.includes('Benefits on your card')) break;
+    const fm = l.match(
+      /[C₹\u20B9]\s*-?([\d,]+\.\d+)\s+[C₹\u20B9]\s*-?([\d,]+\.\d+)\s+[C₹\u20B9]\s*-?([\d,]+\.\d+)\s+[C₹\u20B9]\s*-?([\d,]+\.\d+)/
+    );
+    if (fm) { svCredit = +fm[2].replace(/,/g,''); svDebit = +fm[3].replace(/,/g,''); break; }
+  }
+
+  // Transactions
+  const txns = [];
+  let inT = false;
+  const END  = /(Rewards Program Points Summary|Eligible for EMI|Cash Back Summary|GST Summary)/i;
+  const SKIP = /(^DATE & TIME|TRANSACTION DESCRIPTION|AMOUNT\s+PI$|^JEYA PRAKASH\s)/;
+
+  for (const l of lines) {
+    if (l.includes('Domestic Transactions') && !l.toLowerCase().includes('international')) {
+      inT = true; continue;
+    }
+    if (!inT) continue;
+    if (END.test(l))  { inT = false; continue; }
+    if (SKIP.test(l)) { continue; }
+    const t = parseTxnLine(l);
+    if (t) txns.push({ ...t, sDate, period, _deleted: false });
+  }
+
+  // Reward points balance
+  let rp = { o:0, e:0, d:0, a:0, c:0 };
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('Opening Balance') && lines[i].includes('Earned')) {
+      for (let j = i+1; j <= Math.min(i+4, lines.length-1); j++) {
+        const nm = lines[j].match(/^(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*$/);
+        if (nm) {
+          rp = { o:+nm[1], e:+nm[2], d:+nm[3], a:+nm[4], c:+nm[1]+ +nm[2]- +nm[3]- +nm[4] };
+          break;
+        }
+      }
+      break;
+    }
+  }
+
+  // Reward programs
+  const progs = [];
+  let inP = false;
+  for (const l of lines) {
+    if (l.includes('Rewards Program Points Summary')) { inP = true; continue; }
+    if (!inP) continue;
+    if (/^(SR NO|PROGRAMS|BONUS)/i.test(l)) continue;
+    if (/^Total\s+\d+/i.test(l)) { inP = false; continue; }
+    const pm = l.match(/^(\d+)\s+(.+?)\s+(\d+)\s+pts?$/i);
+    if (pm) progs.push({ sr:+pm[1], prog:pm[2].trim(), pts:+pm[3] });
+  }
+
+  const tD = txns.filter(t => t.type==='DEBIT').reduce((s,t) => s+t.amt, 0);
+  const tC = txns.filter(t => t.type==='CREDIT').reduce((s,t) => s+t.amt, 0);
+
+  return { filename, sDate, period, txns, rp, progs, tD, tC, svDebit, svCredit };
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Verification table
+═══════════════════════════════════════════════════════════════════ */
+function renderVerification() {
+  let h = `<div class="sec" style="margin-top:0">Verification — ${results.length} statement${results.length>1?'s':''}</div>
+  <div class="tbl-wrap"><table>
+  <tr>
+    <th>File</th><th>Statement Period</th>
+    <th style="text-align:right">Txns</th>
+    <th style="text-align:right">Parsed Debit ₹</th>
+    <th style="text-align:right">PDF Debit ₹</th>
+    <th style="text-align:right">Δ</th>
+    <th style="text-align:right">Parsed Credit ₹</th>
+    <th style="text-align:right">PDF Credit ₹</th>
+    <th style="text-align:right">Δ</th>
+    <th>Status</th>
+  </tr>`;
+
+  for (const s of results) {
+    const dd = s.svDebit  != null ? Math.abs(s.tD - s.svDebit)  : null;
+    const cd = s.svCredit != null ? Math.abs(s.tC - s.svCredit) : null;
+    const ok = (dd==null||dd<0.5) && (cd==null||cd<0.5);
+    h += `<tr>
+      <td>${escHtml(s.filename)}</td>
+      <td>${escHtml(s.period)||'—'}</td>
+      <td class="num">${s.txns.length}</td>
+      <td class="num">${s.tD.toFixed(2)}</td>
+      <td class="num">${s.svDebit!=null?s.svDebit.toFixed(2):'—'}</td>
+      <td class="num ${dd!=null?(dd<0.5?'dgood':'dbad'):''}">${dd!=null?dd.toFixed(2):'—'}</td>
+      <td class="num">${s.tC.toFixed(2)}</td>
+      <td class="num">${s.svCredit!=null?s.svCredit.toFixed(2):'—'}</td>
+      <td class="num ${cd!=null?(cd<0.5?'dgood':'dbad'):''}">${cd!=null?cd.toFixed(2):'—'}</td>
+      <td class="${ok?'pass':'fail'}">${ok?'✓ PASS':'✗ FAIL'}</td>
+    </tr>`;
+  }
+  h += '</table></div>';
+  document.getElementById('verWrap').innerHTML = h;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Editable transaction table
+
+   Editing mechanics:
+   • Date, Time, Description, Amount  →  contenteditable cells
+     (Enter blurs/commits; Esc reverts)
+   • Type                             →  click button toggles DEBIT ↔ CREDIT
+   • Is EMI, PI Indicator             →  click button toggles YES ↔ NO
+   • Delete row                       →  row strikethrough + excluded from CSV
+     (click ↩ to restore)
+
+   Data model: changes write back into results[si].txns[ti] immediately.
+   Download reads from that object, skipping _deleted rows.
+═══════════════════════════════════════════════════════════════════ */
+function renderTransactions() {
+  let h = `
+  <div class="sec">Transactions — click any cell to edit</div>
+  <div class="hint">
+    <span>✏ Click a cell to edit</span>
+    <span>↵ Enter or Tab to commit</span>
+    <span>🔄 Click <b>DEBIT / CREDIT</b> to toggle type</span>
+    <span>× to delete row (strikethrough; excluded from CSV) &nbsp; ↩ to restore</span>
+  </div>
+  <div class="tbl-wrap"><table id="txnTbl">
+  <tr>
+    <th class="rnum">#</th>
+    <th>Period</th>
+    <th>Date</th>
+    <th>Time</th>
+    <th>Description</th>
+    <th style="text-align:right">Amount ₹</th>
+    <th>Type</th>
+    <th>Is EMI</th>
+    <th>PI</th>
+    <th></th>
+  </tr>`;
+
+  let n = 0;
+  for (let si = 0; si < results.length; si++) {
+    for (let ti = 0; ti < results[si].txns.length; ti++) {
+      const t = results[si].txns[ti];
+      n++;
+      const typeClass = t.type === 'CREDIT' ? 'cr' : 'dr';
+      h += `<tr class="${typeClass}" data-si="${si}" data-ti="${ti}" id="tr-${si}-${ti}">
+        <td class="rnum">${n}</td>
+        <td class="period-cell">${escHtml(t.period)}</td>
+        <td contenteditable="true" data-f="date">${escHtml(t.date)}</td>
+        <td contenteditable="true" data-f="time">${escHtml(t.time)}</td>
+        <td contenteditable="true" data-f="desc" class="desc-cell">${escHtml(t.desc)}</td>
+        <td contenteditable="true" data-f="amt" class="num">${t.amt.toFixed(2)}</td>
+        <td>
+          <button class="type-btn ${typeClass}" data-si="${si}" data-ti="${ti}"
+                  onclick="toggleType(this)">${t.type}</button>
+        </td>
+        <td>
+          <button class="bool-btn ${t.emi?'yes':''}" data-si="${si}" data-ti="${ti}" data-f="emi"
+                  onclick="toggleBool(this)">${t.emi?'YES':'NO'}</button>
+        </td>
+        <td>
+          <button class="bool-btn ${t.pi?'yes':''}" data-si="${si}" data-ti="${ti}" data-f="pi"
+                  onclick="toggleBool(this)">${t.pi?'YES':'NO'}</button>
+        </td>
+        <td>
+          <button class="del-btn" data-si="${si}" data-ti="${ti}"
+                  onclick="toggleDelete(this)" title="Delete row">×</button>
+        </td>
+      </tr>`;
+    }
+  }
+  h += '</table></div>';
+
+  document.getElementById('txnWrap').innerHTML = h;
+
+  // Attach contenteditable handlers
+  document.querySelectorAll('#txnTbl td[contenteditable]').forEach(td => {
+    let original = '';
+
+    td.addEventListener('focus', function() {
+      original = this.textContent.trim();
+      // Select all text on focus
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(this);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    });
+
+    td.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        this.blur();
+      }
+      if (e.key === 'Escape') {
+        this.textContent = original;
+        this.blur();
+      }
+    });
+
+    td.addEventListener('blur', function() {
+      const row = this.closest('tr');
+      if (!row || !row.dataset.si) return;
+      const si = +row.dataset.si, ti = +row.dataset.ti;
+      const fld = this.dataset.f;
+      const val = this.textContent.trim();
+      if (fld === 'amt') {
+        const n = parseFloat(val.replace(/,/g,''));
+        results[si].txns[ti].amt = isNaN(n) ? 0 : n;
+        this.textContent = results[si].txns[ti].amt.toFixed(2);
+      } else {
+        results[si].txns[ti][fld] = val;
+      }
+      updateTotalBar();
+    });
+
+    // Prevent pasting rich HTML
+    td.addEventListener('paste', function(e) {
+      e.preventDefault();
+      const text = e.clipboardData.getData('text/plain');
+      document.execCommand('insertText', false, text);
+    });
+  });
+}
+
+/* ── Toggle helpers ── */
+function toggleType(btn) {
+  const si = +btn.dataset.si, ti = +btn.dataset.ti;
+  const t  = results[si].txns[ti];
+  t.type   = t.type === 'DEBIT' ? 'CREDIT' : 'DEBIT';
+  btn.textContent = t.type;
+  btn.className   = `type-btn ${t.type === 'CREDIT' ? 'cr' : 'dr'}`;
+  const row       = document.getElementById(`tr-${si}-${ti}`);
+  row.className   = t.type === 'CREDIT' ? 'cr' : 'dr';
+  updateTotalBar();
+}
+
+function toggleBool(btn) {
+  const si  = +btn.dataset.si, ti = +btn.dataset.ti;
+  const fld = btn.dataset.f;
+  const cur = results[si].txns[ti][fld];
+  results[si].txns[ti][fld] = !cur;
+  btn.textContent = !cur ? 'YES' : 'NO';
+  btn.className   = `bool-btn${!cur ? ' yes' : ''}`;
+}
+
+function toggleDelete(btn) {
+  const si = +btn.dataset.si, ti = +btn.dataset.ti;
+  const t  = results[si].txns[ti];
+  t._deleted = !t._deleted;
+  const row  = document.getElementById(`tr-${si}-${ti}`);
+  if (t._deleted) {
+    row.classList.add('deleted');
+    btn.textContent = '↩';
+    btn.title = 'Restore row';
+    btn.classList.add('undo');
+  } else {
+    row.classList.remove('deleted');
+    btn.textContent = '×';
+    btn.title = 'Delete row';
+    btn.classList.remove('undo');
+  }
+  updateTotalBar();
+}
+
+/* ── Running total bar ── */
+function updateTotalBar() {
+  let totalD = 0, totalC = 0, active = 0;
+  for (const s of results) {
+    for (const t of s.txns) {
+      if (t._deleted) continue;
+      active++;
+      t.type === 'DEBIT' ? (totalD += t.amt) : (totalC += t.amt);
+    }
+  }
+  document.getElementById('totalBar').innerHTML =
+    `<b>${active}</b> rows &nbsp;·&nbsp; Total Debit: <b>₹${fmtN(totalD)}</b> &nbsp;·&nbsp; Total Credit: <b>₹${fmtN(totalC)}</b>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Reward points + programs (read-only display)
+═══════════════════════════════════════════════════════════════════ */
+function renderRewards() {
+  // Reward Points Summary
+  let h = `<div class="sec">Reward Points Summary</div>
+  <div class="tbl-wrap"><table id="rwdTable">
+  <tr>
+    <th>Statement Date</th><th>Statement Period</th>
+    <th style="text-align:right">Opening</th>
+    <th style="text-align:right">Earned</th>
+    <th style="text-align:right">Disbursed</th>
+    <th style="text-align:right">Adjusted/Lapsed</th>
+    <th style="text-align:right">Closing</th>
+  </tr>`;
+  for (const s of results) {
+    h += `<tr>
+      <td>${escHtml(s.sDate)}</td>
+      <td>${escHtml(s.period)}</td>
+      <td class="num">${s.rp.o}</td>
+      <td class="num">${s.rp.e}</td>
+      <td class="num">${s.rp.d}</td>
+      <td class="num">${s.rp.a}</td>
+      <td class="num"><b>${s.rp.c}</b></td>
+    </tr>`;
+  }
+  h += '</table></div>';
+
+  // Programs breakdown
+  h += `<div class="sec">Rewards Program Breakdown</div>
+  <div class="tbl-wrap"><table id="progTable">
+  <tr>
+    <th>Statement Date</th><th>Statement Period</th>
+    <th>SR No</th><th>Program</th>
+    <th style="text-align:right">Bonus Points</th>
+  </tr>`;
+  let anyProg = false;
+  for (const s of results) {
+    for (const p of s.progs) {
+      anyProg = true;
+      h += `<tr>
+        <td>${escHtml(s.sDate)}</td>
+        <td>${escHtml(s.period)}</td>
+        <td>${p.sr}</td>
+        <td>${escHtml(p.prog)}</td>
+        <td class="num">${p.pts}</td>
+      </tr>`;
+    }
+  }
+  if (!anyProg) h += `<tr><td colspan="5" style="color:#888;text-align:center;padding:10px">No reward program rows found</td></tr>`;
+  h += '</table></div>';
+
+  document.getElementById('rwdWrap').innerHTML = h;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CSV generation — reads from results[] (updated by edits)
+   Skips rows where _deleted === true
+═══════════════════════════════════════════════════════════════════ */
+function buildCSV() {
+  const rows = [];
+  const q = v => { const s = String(v??''); return /[,"\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:`${s}`; };
+  const R = (...c) => rows.push(c.map(q).join(','));
+
+  R('TRANSACTIONS');
+  R('Statement Date','Statement Period','Date','Time','Description','Amount','Type','Is EMI','PI Indicator');
+  for (const s of results) {
+    for (const t of s.txns) {
+      if (t._deleted) continue;
+      R(s.sDate, s.period, t.date, t.time, t.desc,
+        t.amt.toFixed(2), t.type, t.emi?'YES':'NO', t.pi?'YES':'NO');
+    }
+  }
+
+  rows.push('');
+
+  R('REWARD POINTS SUMMARY');
+  R('Statement Date','Statement Period','Opening Balance','Earned','Disbursed','Adjusted/Lapsed','Closing Balance');
+  for (const s of results) R(s.sDate, s.period, s.rp.o, s.rp.e, s.rp.d, s.rp.a, s.rp.c);
+
+  rows.push('');
+
+  R('REWARDS PROGRAM BREAKDOWN');
+  R('Statement Date','Statement Period','SR No','Program','Bonus Points');
+  for (const s of results) for (const p of s.progs) R(s.sDate, s.period, p.sr, p.prog, p.pts);
+
+  return rows.join('\n');
+}
+
+document.getElementById('dlBtn').addEventListener('click', () => {
+  const blob = new Blob(['\uFEFF' + buildCSV()], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'),
+    { href: url, download: 'hdfc_millennia_statements.csv' }
+  ).click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RBL IndianOil XTRA Parser v1</title>
+<style>
+  :root{
+    --ink:#1c2333;
+    --ink-soft:#5a6378;
+    --paper:#eaedf1;
+    --surface:#ffffff;
+    --line:#d8dce3;
+    --line-soft:#e7e9ee;
+    --credit:#1e7a5f;
+    --credit-soft:#e3f2ec;
+    --debit:#a8472f;
+    --debit-soft:#f8eae5;
+    --accent:#32479e;
+    --accent-soft:#e7eaf9;
+    --warn:#9a6710;
+    --warn-soft:#faf0d9;
+    --danger:#a4283a;
+    --danger-soft:#f8e6e9;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", ui-sans-serif, system-ui, Helvetica, Arial, sans-serif;
+    --radius: 10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--sans);
+    background:var(--paper);
+    color:var(--ink);
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+  }
+  .shell{max-width:1080px;margin:0 auto;padding:32px 20px 80px;}
+
+  header.app-header{
+    display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:16px;margin-bottom:28px;flex-wrap:wrap;gap:8px;
+  }
+  header.app-header .title-block h1{font-size:22px;margin:0;letter-spacing:-0.01em;font-weight:700;}
+  header.app-header .title-block .tag{
+    font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);
+    margin-top:4px;font-weight:600;
+  }
+  header.app-header .meta-note{font-size:12px;color:var(--ink-soft);text-align:right;max-width:260px;}
+
+  .eyebrow{
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:700;margin:0 0 10px;
+  }
+
+  .dropzone{
+    border:2px dashed var(--line);border-radius:var(--radius);background:var(--surface);
+    padding:36px 24px;text-align:center;cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .dropzone.drag-over{border-color:var(--accent);background:var(--accent-soft);}
+  .dropzone h2{font-size:16px;margin:0 0 6px;font-weight:700;}
+  .dropzone p{font-size:13px;color:var(--ink-soft);margin:0;}
+  .dropzone input[type=file]{display:none;}
+  .browse-link{color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;}
+
+  .file-chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+  .file-chip{
+    display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);
+    border-radius:999px;padding:6px 8px 6px 14px;font-size:12.5px;
+  }
+  .file-chip .nm{font-family:var(--mono);}
+  .file-chip button{
+    border:none;background:var(--line-soft);color:var(--ink);
+    width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1;
+  }
+  .file-chip button:hover{background:var(--debit-soft);color:var(--debit);}
+
+  .action-row{display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:12px;flex-wrap:wrap;}
+  .btn{
+    font-family:var(--sans);font-size:13.5px;font-weight:700;
+    padding:10px 18px;border-radius:8px;border:1px solid transparent;
+    cursor:pointer;transition:transform .08s, background .15s;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-primary:hover{background:#000;}
+  .btn-primary:disabled{background:var(--line);color:var(--ink-soft);cursor:not-allowed;}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink);}
+  .btn-ghost:hover{border-color:var(--ink);}
+  .btn-small{padding:5px 10px;font-size:12px;}
+  .btn:focus-visible, input:focus-visible, select:focus-visible, .dropzone:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;
+  }
+
+  .banner{
+    border-radius:8px;padding:12px 14px;font-size:13px;margin-top:12px;
+    display:flex;justify-content:space-between;gap:12px;align-items:flex-start;
+  }
+  .banner strong{display:block;margin-bottom:2px;font-size:13px;}
+  .banner.error{background:var(--danger-soft);color:var(--danger);}
+  .banner.warn{background:var(--warn-soft);color:var(--warn);}
+  .banner.info{background:var(--accent-soft);color:var(--accent);}
+  .banner button.dismiss{background:none;border:none;color:inherit;font-size:16px;cursor:pointer;line-height:1;opacity:.6;}
+  .banner button.dismiss:hover{opacity:1;}
+
+  .dashboard{margin-top:36px;display:grid;grid-template-columns:repeat(6,1fr);gap:12px;}
+  @media (max-width:900px){.dashboard{grid-template-columns:repeat(3,1fr);}}
+  @media (max-width:560px){.dashboard{grid-template-columns:repeat(2,1fr);}}
+  .stat-tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+  .stat-tile .lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;}
+  .stat-tile .val{font-family:var(--mono);font-size:20px;font-weight:600;margin-top:6px;}
+  .stat-tile.credit .val{color:var(--credit);}
+  .stat-tile.debit .val{color:var(--debit);}
+  .stat-tile.status .val{font-size:14px;}
+  .stat-tile.status.ok .val{color:var(--credit);}
+  .stat-tile.status.bad .val{color:var(--warn);}
+
+  .statements{margin-top:36px;display:flex;flex-direction:column;gap:16px;}
+  .stmt-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px 20px;animation:fadeIn .25s ease;
+  }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .stmt-card .stmt-head{
+    display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;
+    border-bottom:1px solid var(--line-soft);padding-bottom:10px;margin-bottom:14px;
+  }
+  .stmt-card .stmt-head .src{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);}
+  .stmt-card .stmt-head h3{font-size:15px;margin:0;font-weight:700;}
+
+  .stmt-meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+  @media (max-width:760px){.stmt-meta-grid{grid-template-columns:repeat(2,1fr);}}
+  .stmt-meta-grid .m-lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);font-weight:700;}
+  .stmt-meta-grid .m-val{font-family:var(--mono);font-size:13.5px;margin-top:3px;word-break:break-word;}
+
+  .check-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  @media (max-width:760px){.check-list{grid-template-columns:repeat(2,1fr);}}
+  .check-item{border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px;font-size:12px;}
+  .check-item .c-name{font-weight:700;display:flex;align-items:center;gap:6px;}
+  .check-item .c-detail{font-family:var(--mono);color:var(--ink-soft);margin-top:4px;font-size:11.5px;}
+  .check-item.pass{background:var(--credit-soft);}
+  .check-item.pass .c-name{color:var(--credit);}
+  .check-item.fail{background:var(--warn-soft);}
+  .check-item.fail .c-name{color:var(--warn);}
+  .check-item.na{background:var(--line-soft);}
+  .check-item.na .c-name{color:var(--ink-soft);}
+
+  .table-section{margin-top:36px;}
+  .table-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px;}
+  .table-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto;}
+  table.txn-table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:1620px;}
+  table.txn-table thead th{
+    position:sticky;top:0;background:var(--ink);color:#fff;
+    text-align:left;padding:10px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+    white-space:nowrap;font-weight:700;
+  }
+  table.txn-table tbody td{padding:4px 6px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+  table.txn-table tbody tr:hover{background:var(--paper);}
+  table.txn-table input, table.txn-table select{
+    font-family:var(--sans);font-size:12.5px;border:1px solid transparent;background:transparent;
+    padding:6px 6px;border-radius:5px;width:100%;color:var(--ink);
+  }
+  table.txn-table input:hover, table.txn-table select:hover{border-color:var(--line);}
+  table.txn-table input:focus, table.txn-table select:focus{border-color:var(--accent);background:#fff;outline:none;}
+  table.txn-table td.amount-cell input{font-family:var(--mono);text-align:right;}
+  table.txn-table td.date-cell input{font-family:var(--mono);}
+  select.dir-select.CREDIT{background:var(--credit-soft);color:var(--credit);}
+  select.dir-select.DEBIT{background:var(--debit-soft);color:var(--debit);}
+  td.del-cell{text-align:center;}
+  .row-del-btn{border:none;background:transparent;color:var(--ink-soft);cursor:pointer;font-size:14px;width:24px;height:24px;border-radius:6px;}
+  .row-del-btn:hover{background:var(--debit-soft);color:var(--debit);}
+  .add-row-bar{padding:10px;border-top:1px solid var(--line-soft);}
+
+  .empty-state{text-align:center;padding:48px 20px;color:var(--ink-soft);font-size:13.5px;}
+
+  footer.app-footer{
+    margin-top:48px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--ink-soft);text-align:center;
+  }
+
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div style="font-family:ui-monospace,monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:16px 22px 0;max-width:1100px;margin:0 auto;"><a href="index.html" style="color:#1F4B43;text-decoration:none;">&larr; All cards</a></div>
+
+<div class="shell">
+
+  <header class="app-header">
+    <div class="title-block">
+      <h1>RBL IndianOil XTRA Parser v1</h1>
+      <div class="tag">Statement reconciliation &amp; transaction export</div>
+    </div>
+    <div class="meta-note">Runs entirely in this browser tab. Files are read locally and never uploaded anywhere.</div>
+  </header>
+
+  <p class="eyebrow">01 — Upload statements</p>
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload PDF statements">
+    <h2>Drop RBL IndianOil XTRA statement PDFs here</h2>
+    <p>or <span class="browse-link" id="browseLink">choose files</span> from your computer. Multiple statements can be parsed in one batch.</p>
+    <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple>
+  </div>
+  <div class="file-chip-row" id="fileChipRow"></div>
+
+  <div class="action-row">
+    <div id="fileCountNote" style="font-size:12.5px;color:var(--ink-soft);">No files selected yet.</div>
+    <button class="btn btn-primary" id="parseBtn" disabled>Parse statements</button>
+  </div>
+
+  <div id="bannerArea"></div>
+
+  <div id="dashboardSection" class="hidden">
+    <p class="eyebrow" style="margin-top:36px;">02 — Summary</p>
+    <div class="dashboard">
+      <div class="stat-tile"><div class="lbl">Transactions</div><div class="val" id="statCount">0</div></div>
+      <div class="stat-tile"><div class="lbl">Credits</div><div class="val" id="statCreditCount">0</div></div>
+      <div class="stat-tile"><div class="lbl">Debits</div><div class="val" id="statDebitCount">0</div></div>
+      <div class="stat-tile credit"><div class="lbl">Total credits</div><div class="val" id="statCredits">₹0.00</div></div>
+      <div class="stat-tile debit"><div class="lbl">Total debits</div><div class="val" id="statDebits">₹0.00</div></div>
+      <div class="stat-tile status" id="statStatusTile"><div class="lbl">Validation results</div><div class="val" id="statStatus">—</div></div>
+    </div>
+  </div>
+
+  <div id="statementsSection" class="hidden">
+    <p class="eyebrow" style="margin-top:36px;">03 — Statement summary</p>
+    <div class="statements" id="statementsList"></div>
+  </div>
+
+  <div id="tableSection" class="table-section hidden">
+    <p class="eyebrow">04 — Transactions (editable)</p>
+    <div class="table-toolbar">
+      <div style="font-size:12.5px;color:var(--ink-soft);" id="tableCountNote"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-small" id="downloadCsvBtn">Download CSV</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="txn-table" id="txnTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Txn date</th>
+            <th style="min-width:220px;">Description</th>
+            <th>Amount</th>
+            <th>Direction</th>
+            <th style="min-width:190px;">Transaction type</th>
+            <th>Actual fuel filled</th>
+            <th>Fuel surcharge</th>
+            <th>GST on fuel surcharge</th>
+            <th>Fuel points</th>
+            <th>Reward amount</th>
+            <th>Source file</th>
+            <th>Statement date</th>
+            <th>Billing start</th>
+            <th>Billing end</th>
+            <th>Cardholder</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="txnTbody"></tbody>
+      </table>
+      <div class="add-row-bar">
+        <button class="btn btn-ghost btn-small" id="addRowBtn">+ Add row</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    RBL IndianOil XTRA Parser v1 — built against the RBL Bank IndianOil XTRA Credit Card statement layout. No data is transmitted; everything happens in this tab.
+  </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+var pdfjsReady = false;
+if (typeof pdfjsLib !== "undefined") {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  pdfjsReady = true;
+}
+
+/* =========================================================
+   PARSER CORE — pattern-based extraction, classification,
+   validation. (Tested standalone against verified statement
+   data before being embedded here.)
+   ========================================================= */
+
+const CREDIT_TYPES = ["PAYMENT_RECEIVED", "FUEL_SURCHARGE_REVERSAL"];
+const DEBIT_TYPES = ["MERCHANT_SPEND", "GST_CHARGE", "REWARD_REDEMPTION_FEE", "MEMBERSHIP_FEE", "FUEL_TRANSACTION_FEE", "REV_PETROL_SURCHARGE", "OTHER_DEBIT"];
+const FEE_DEBIT_TYPES = ["REWARD_REDEMPTION_FEE", "MEMBERSHIP_FEE", "FUEL_TRANSACTION_FEE", "REV_PETROL_SURCHARGE"];
+const TOL_LINE = 0.02;
+
+// Fuel rewards economics — confirmed against the card's official terms sheet.
+const FUEL_GST_MULTIPLIER = 1.0118;   // Amount charged = Fuel Amount x (1 + 1% surcharge + 18% GST on that surcharge)
+const FUEL_SURCHARGE_RATE = 0.01;
+const GST_ON_SURCHARGE_RATE = 0.18;
+const FUEL_POINTS_PER_100 = 15;
+const POINT_VALUE_RUPEES = 0.5;
+const MONTHLY_FUEL_POINTS_CAP = 2000;
+const MONTHLY_SURCHARGE_WAIVER_CAP = 200;
+// Gift-icon ("Eligible for Bonus Reward Points") image column position, in PDF
+// page units — verified empirically across many real statements.
+const ICON_X_CENTER = 587;
+const ICON_X_TOLERANCE = 4;
+const ICON_Y_TOLERANCE = 4;
+// Validation keys that carry real pass/fail semantics — rewardRate is an
+// informational metric, not a check, and must be excluded from pass/fail tallies.
+const CHECK_KEYS = ["newDebits", "feesCharges", "paymentsCredits", "totalDue", "pointsCheck", "paymentCheck"];
+
+function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+
+function parseMoney(str) {
+  if (str == null) return null;
+  const cleaned = String(str).replace(/,/g, "").trim();
+  const v = parseFloat(cleaned);
+  return isNaN(v) ? null : v;
+}
+
+function moneyMatch(text, label, maxGap) {
+  const re = new RegExp(label + "[^\\d-]{0," + maxGap + "}(-?[\\d,]+\\.\\d{2})", "i");
+  const m = text.match(re);
+  return m ? parseMoney(m[1]) : null;
+}
+
+function intMatch(text, label, maxGap) {
+  const re = new RegExp(label + "[^\\d]{0," + (maxGap || 8) + "}(\\d+(?:\\.\\d+)?)", "i");
+  const m = text.match(re);
+  return m ? parseFloat(m[1]) : null;
+}
+
+// Date reformatting — every date on an RBL statement is either "D Mon YYYY"
+// (transaction rows) or "DD-MM-YYYY" (statement date / billing period).
+// Both get converted to MM/DD/YYYY at the point of extraction so every date
+// field in this app (on screen and in the CSV) is already Excel-friendly.
+const MONTH_ABBR = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+
+function formatDateFromMonthName(d) {
+  if (!d) return d;
+  const m = d.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
+  if (!m) return d;
+  const mon = MONTH_ABBR[m[2].slice(0, 3).toLowerCase()];
+  if (!mon) return d;
+  return String(mon).padStart(2, "0") + "/" + m[1].padStart(2, "0") + "/" + m[3];
+}
+
+function formatDateFromDDMMYYYY(d) {
+  if (!d) return d;
+  const m = d.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (!m) return d;
+  return m[2].padStart(2, "0") + "/" + m[1].padStart(2, "0") + "/" + m[3];
+}
+
+function extractMetadata(fullText) {
+  const boundaryIdx = fullText.indexOf("THE MONTH GONE BY!");
+  const metaText = boundaryIdx >= 0 ? fullText.slice(0, boundaryIdx) : fullText;
+
+  const metadata = {
+    cardholderName: null, statementDate: null, billingPeriodStart: null, billingPeriodEnd: null,
+    totalAmountDue: null, paymentDueDate: null, lastBillAmount: null, paymentsCredits: null,
+    newDebits: null, feesCharges: null, gst: null, transferredToEMI: null, monthlyEMIDebits: null,
+    openingBalance: null, earned: null, redeemed: null, adjustments: null, availableRewardPoints: null,
+  };
+
+  const lines = metaText.split("\n");
+  for (const line of lines) {
+    const m = line.match(/^\s*Hello,\s*(.+)$/i);
+    if (m) { metadata.cardholderName = m[1].trim(); break; }
+  }
+
+  metadata.totalAmountDue = moneyMatch(metaText, "Total Amount Due", 12);
+  metadata.lastBillAmount = moneyMatch(metaText, "Last Bill Amount", 12);
+  metadata.paymentsCredits = moneyMatch(metaText, "Payments\\s*&\\s*Credits", 12);
+  metadata.newDebits = moneyMatch(metaText, "New Debits", 12);
+  metadata.transferredToEMI = moneyMatch(metaText, "Transferred to EMI", 12);
+  metadata.monthlyEMIDebits = moneyMatch(metaText, "Monthly EMI Debits", 12);
+  metadata.feesCharges = moneyMatch(metaText, "Fees\\s*&\\s*Charges", 12);
+  metadata.gst = moneyMatch(metaText, "Goods\\s*&\\s*Services\\s*Tax", 12);
+
+  // Reward Summary box — pulled from the full text rather than the
+  // THE-MONTH-GONE-BY-truncated metaText, since which side of that boundary
+  // this box falls on can vary slightly by statement layout.
+  metadata.openingBalance = intMatch(fullText, "Opening Balance", 6);
+  metadata.earned = intMatch(fullText, "Earned", 6);
+  metadata.redeemed = intMatch(fullText, "Redeemed", 6);
+  metadata.adjustments = intMatch(fullText, "Adjustments", 6);
+  metadata.availableRewardPoints = intMatch(fullText, "Available Reward Points", 6);
+
+  const pdm = metaText.match(/Payment Due Date[^\d]{0,15}(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/i);
+  if (pdm) metadata.paymentDueDate = pdm[1].replace(/\s+/g, " ").trim();
+
+  const sdm = metaText.match(/Statement Date[^\d]{0,12}(\d{1,2}-\d{1,2}-\d{4})/i);
+  if (sdm) metadata.statementDate = formatDateFromDDMMYYYY(sdm[1]);
+
+  const bpm = metaText.match(/(\d{1,2}-\d{1,2}-\d{4})\s+to\s+(\d{1,2}-\d{1,2}-\d{4})/i);
+  if (bpm) { metadata.billingPeriodStart = formatDateFromDDMMYYYY(bpm[1]); metadata.billingPeriodEnd = formatDateFromDDMMYYYY(bpm[2]); }
+
+  return metadata;
+}
+
+function parseTransactionLine(line) {
+  const m = line.match(/^(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\s+(.+)$/);
+  if (!m) return null;
+  const date = m[1].replace(/\s+/g, " ").trim();
+  const rest = m[2];
+
+  const amountRe = /\d{1,3}(?:,\d{2,3})*\.\d{2}/g;
+  let match, last = null;
+  while ((match = amountRe.exec(rest)) !== null) last = match;
+  if (!last) return null;
+
+  const amount = parseMoney(last[0]);
+  const description = rest.slice(0, last.index).replace(/\s+/g, " ").trim();
+  if (!description) return null;
+
+  return { date, description, amount };
+}
+
+function classifyTransaction(description) {
+  const d = description;
+  if (/PAYMENT RECEIVED\s*-\s*BBPS/i.test(d)) return { direction: "CREDIT", transactionType: "PAYMENT_RECEIVED" };
+  if (/petrol surcharge rev/i.test(d)) return { direction: "CREDIT", transactionType: "FUEL_SURCHARGE_REVERSAL" };
+
+  if (/Goods\s*&\s*Service\s*Tax/i.test(d)) return { direction: "DEBIT", transactionType: "GST_CHARGE" };
+  if (/Reward Redemption\s*Fee/i.test(d)) return { direction: "DEBIT", transactionType: "REWARD_REDEMPTION_FEE" };
+  if (/MEMBERSHIP FEE/i.test(d)) return { direction: "DEBIT", transactionType: "MEMBERSHIP_FEE" };
+  if (/Fee on Fuel Txn/i.test(d)) return { direction: "DEBIT", transactionType: "FUEL_TRANSACTION_FEE" };
+  if (/Rev\.?\s*petrol surcharge/i.test(d)) return { direction: "DEBIT", transactionType: "REV_PETROL_SURCHARGE" };
+
+  return { direction: "DEBIT", transactionType: "MERCHANT_SPEND" };
+}
+
+function computeFuelFields(amount, hasIcon, direction) {
+  if (!hasIcon || direction !== "DEBIT") {
+    return { actualFuelFilled: null, fuelSurcharge: null, gstOnFuelSurcharge: null, fuelPoints: null, rewardAmount: null };
+  }
+  const actualFuelFilled = round2(amount / FUEL_GST_MULTIPLIER);
+  const fuelSurcharge = round2(actualFuelFilled * FUEL_SURCHARGE_RATE);
+  const gstOnFuelSurcharge = round2(fuelSurcharge * GST_ON_SURCHARGE_RATE);
+  const fuelPoints = Math.floor(actualFuelFilled / 100) * FUEL_POINTS_PER_100;
+  const rewardAmount = round2(fuelPoints * POINT_VALUE_RUPEES);
+  return { actualFuelFilled, fuelSurcharge, gstOnFuelSurcharge, fuelPoints, rewardAmount };
+}
+
+const FAKE_HEADER_RE = /^Date\s+Transaction\s+Amount\s*$/i;
+const REAL_HEADER_RE = /^Date\s+Description\s+Amount/i;
+const TABLE_START_RE = /^THE MONTH GONE BY!/i;
+const DATE_PREFIX_RE = /^\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}/;
+
+// lines: array of {text, page, y} — page/y are carried through so each parsed
+// transaction can later be matched against a detected gift-icon position.
+function processDocumentLines(lines, sourceFile, iconPositions) {
+  const transactions = [];
+  let state = "NONE"; // NONE | IN_TABLE | DONE
+
+  function hasIconNear(page, y) {
+    return iconPositions.some(ip => ip.page === page && Math.abs(ip.x - ICON_X_CENTER) <= ICON_X_TOLERANCE && Math.abs(ip.y - y) <= ICON_Y_TOLERANCE);
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const lineObj = lines[i];
+    const line = (lineObj.text || "").trim();
+    if (!line) continue;
+
+    if (state !== "DONE" && TABLE_START_RE.test(line)) { state = "IN_TABLE"; continue; }
+
+    if (state === "IN_TABLE") {
+      if (FAKE_HEADER_RE.test(line)) { state = "DONE"; continue; } // defensive: never parse the fake table
+      if (REAL_HEADER_RE.test(line)) continue; // repeating column header on continuation pages
+
+      let parsed = parseTransactionLine(line);
+
+      // Defensive reflow: a date-prefixed line with no trailing amount may have
+      // been split by visual line reconstruction; try merging forward.
+      if (!parsed && DATE_PREFIX_RE.test(line)) {
+        let merged = line, attempts = 0, j = i;
+        while (!parsed && attempts < 3 && j + 1 < lines.length) {
+          j++;
+          merged = (merged + " " + lines[j].text).trim();
+          parsed = parseTransactionLine(merged);
+          attempts++;
+        }
+        if (parsed) i = j;
+      }
+
+      if (parsed) {
+        const cls = classifyTransaction(parsed.description);
+        const hasIcon = hasIconNear(lineObj.page, lineObj.y);
+        const fuel = computeFuelFields(parsed.amount, hasIcon, cls.direction);
+        transactions.push({
+          transactionDate: formatDateFromMonthName(parsed.date), description: parsed.description, amount: parsed.amount,
+          direction: cls.direction, transactionType: cls.transactionType, sourceFile: sourceFile,
+          hasIcon, ...fuel,
+        });
+      }
+      // any other non-matching line inside the table (legend text, footnotes) is ignored
+    }
+  }
+
+  return transactions;
+}
+
+function runValidations(metadata, transactions) {
+  const sum = arr => round2(arr.reduce((a, b) => a + b, 0));
+
+  const merchantSum = sum(transactions.filter(t => t.transactionType === "MERCHANT_SPEND").map(t => t.amount));
+  const feeDebitSum = sum(transactions.filter(t => FEE_DEBIT_TYPES.includes(t.transactionType)).map(t => t.amount));
+  const reversalSum = sum(transactions.filter(t => t.transactionType === "FUEL_SURCHARGE_REVERSAL").map(t => t.amount));
+  const paymentSum = sum(transactions.filter(t => t.transactionType === "PAYMENT_RECEIVED").map(t => t.amount));
+  const feesChargesCalc = round2(feeDebitSum - reversalSum);
+
+  const results = {};
+
+  results.newDebits = metadata.newDebits == null ? { label: "New Debits", na: true } : (() => {
+    const delta = round2(merchantSum - metadata.newDebits);
+    return { label: "New Debits", expected: metadata.newDebits, actual: merchantSum, delta, pass: Math.abs(delta) <= TOL_LINE };
+  })();
+
+  results.feesCharges = metadata.feesCharges == null ? { label: "Fees & Charges", na: true } : (() => {
+    const delta = round2(feesChargesCalc - metadata.feesCharges);
+    return { label: "Fees & Charges", expected: metadata.feesCharges, actual: feesChargesCalc, delta, pass: Math.abs(delta) <= TOL_LINE };
+  })();
+
+  results.paymentsCredits = metadata.paymentsCredits == null ? { label: "Payments & Credits", na: true } : (() => {
+    const delta = round2(paymentSum - metadata.paymentsCredits);
+    return { label: "Payments & Credits", expected: metadata.paymentsCredits, actual: paymentSum, delta, pass: Math.abs(delta) <= TOL_LINE };
+  })();
+
+  const requiredForTotal = ["lastBillAmount", "paymentsCredits", "newDebits", "transferredToEMI", "monthlyEMIDebits", "feesCharges", "gst", "totalAmountDue"];
+  const hasAllForTotal = requiredForTotal.every(k => metadata[k] != null);
+
+  results.totalDue = !hasAllForTotal ? { label: "Total Amount Due", na: true } : (() => {
+    const reconstructed = round2(
+      metadata.lastBillAmount - metadata.paymentsCredits + metadata.newDebits -
+      metadata.transferredToEMI + metadata.monthlyEMIDebits + metadata.feesCharges + metadata.gst
+    );
+    const ceilVal = Math.ceil(reconstructed - 1e-9);
+    const delta = round2(ceilVal - metadata.totalAmountDue);
+    return { label: "Total Amount Due", expected: metadata.totalAmountDue, actual: ceilVal, delta, pass: Math.abs(delta) < 0.01 };
+  })();
+
+  // ---- Fuel rewards tracking: directional checks only. Bank giving MORE
+  // points or charging LESS than calculated is never flagged — only a
+  // shortfall (fewer points) or an overcharge (paid more) is.
+  const fuelTxns = transactions.filter(t => t.hasIcon && t.direction === "DEBIT");
+  const rawFuelPoints = sum(fuelTxns.map(t => t.fuelPoints || 0));
+  const calculatedPoints = Math.min(rawFuelPoints, MONTHLY_FUEL_POINTS_CAP);
+  const rawSurcharge = sum(fuelTxns.map(t => t.fuelSurcharge || 0));
+  const calculatedSurcharge = Math.min(rawSurcharge, MONTHLY_SURCHARGE_WAIVER_CAP);
+  const totalFuelCharged = sum(fuelTxns.map(t => t.amount));
+  const calculatedNetCost = round2(totalFuelCharged - calculatedSurcharge);
+
+  const actualSurchargeReceived = round2(
+    reversalSum - sum(transactions.filter(t => t.transactionType === "REV_PETROL_SURCHARGE").map(t => t.amount))
+  );
+  const actualNetCost = round2(totalFuelCharged - actualSurchargeReceived);
+
+  const earnedPlusAdjustments = (metadata.earned != null && metadata.adjustments != null)
+    ? metadata.earned + metadata.adjustments : null;
+
+  results.pointsCheck = (earnedPlusAdjustments == null || fuelTxns.length === 0) ? { label: "Reward points", na: true, calculatedPoints, totalFuelCharged } : (() => {
+    const pass = earnedPlusAdjustments >= calculatedPoints;
+    return { label: "Reward points", actualPoints: earnedPlusAdjustments, calculatedPoints, pass, totalFuelCharged };
+  })();
+
+  results.paymentCheck = (fuelTxns.length === 0) ? { label: "Fuel payment", na: true, calculatedNetCost, totalFuelCharged } : (() => {
+    const pass = actualNetCost <= calculatedNetCost + TOL_LINE;
+    return { label: "Fuel payment", actualNetCost, calculatedNetCost, pass, totalFuelCharged, actualSurchargeReceived, calculatedSurcharge };
+  })();
+
+  results.rewardRate = (earnedPlusAdjustments == null || !metadata.newDebits) ? { label: "Reward rate", na: true } : (() => {
+    const rate = round2((earnedPlusAdjustments * POINT_VALUE_RUPEES / metadata.newDebits) * 100);
+    return { label: "Reward rate", rate, earnedPlusAdjustments };
+  })();
+
+  return results;
+}
+
+/* =========================================================
+   PDF.js EXTRACTION LAYER — reconstruct visual lines
+   ========================================================= */
+
+// RBL's statement page is laid out in two side-by-side columns (left:
+// account summary / offer panels, right: the "THE MONTH GONE BY!" table).
+// Clustering must happen separately per column, otherwise a transaction
+// row that sits at the same height as left-column text gets fused into
+// one corrupted line and silently dropped downstream.
+const COLUMN_SPLIT_X = 200; // px boundary between the left and right columns
+
+function clusterItemsIntoLines(items) {
+  items.sort((a, b) => b.y - a.y);
+
+  const clusters = [];
+  let current = [];
+  let refY = null;
+  for (const it of items) {
+    if (refY === null) refY = it.y;
+    if (Math.abs(it.y - refY) <= 3) {
+      current.push(it);
+    } else {
+      clusters.push(current);
+      current = [it];
+      refY = it.y;
+    }
+  }
+  if (current.length) clusters.push(current);
+
+  const lines = [];
+  for (const cluster of clusters) {
+    cluster.sort((a, b) => a.x - b.x);
+    let text = "";
+    let lastEndX = null;
+    for (const it of cluster) {
+      if (lastEndX !== null && (it.x - lastEndX) > 1.2 && !/^\s/.test(it.str) && !/\s$/.test(text)) {
+        text += " ";
+      }
+      text += it.str;
+      lastEndX = it.x + it.w;
+    }
+    const cleaned = text.replace(/[ \t]+/g, " ").trim();
+    if (cleaned) lines.push({ text: cleaned, y: cluster[0].y });
+  }
+  return lines;
+}
+
+// Multiply two PDF transform matrices (each [a,b,c,d,e,f]), used to track the
+// current transform through nested save/restore/transform ops so a painted
+// image's real position on the page can be recovered.
+function matrixMultiply(m1, m2) {
+  return [
+    m1[0] * m2[0] + m1[1] * m2[2], m1[0] * m2[1] + m1[1] * m2[3],
+    m1[2] * m2[0] + m1[3] * m2[2], m1[2] * m2[1] + m1[3] * m2[3],
+    m1[4] * m2[0] + m1[5] * m2[2] + m2[4], m1[4] * m2[1] + m1[5] * m2[3] + m2[5],
+  ];
+}
+
+// The "Eligible for Bonus Reward Points" gift icon is a small embedded raster
+// image, not text — it never appears in getTextContent(). To detect it we
+// walk the page's operator list, tracking the CTM through save/restore/
+// transform so each painted image's true page position can be recovered,
+// then keep only small icon-sized images (the gift icon renders ~7x7pt).
+async function detectIconPositionsOnPage(page) {
+  const opList = await page.getOperatorList();
+  const OPS = pdfjsLib.OPS;
+  let ctm = [1, 0, 0, 1, 0, 0];
+  const stack = [];
+  const positions = [];
+
+  for (let i = 0; i < opList.fnArray.length; i++) {
+    const fn = opList.fnArray[i];
+    const args = opList.argsArray[i];
+    if (fn === OPS.save) {
+      stack.push(ctm);
+    } else if (fn === OPS.restore) {
+      ctm = stack.pop() || ctm;
+    } else if (fn === OPS.transform) {
+      ctm = matrixMultiply(args, ctm);
+    } else if (fn === OPS.paintImageXObject || fn === OPS.paintImageXObjectRepeat) {
+      const xs = [ctm[4], ctm[0] + ctm[4], ctm[2] + ctm[4], ctm[0] + ctm[2] + ctm[4]];
+      const ys = [ctm[5], ctm[1] + ctm[5], ctm[3] + ctm[5], ctm[1] + ctm[3] + ctm[5]];
+      const x = Math.min(...xs), y = Math.min(...ys);
+      const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+      if (w > 2 && w < 12 && h > 2 && h < 12) positions.push({ x, y });
+    }
+  }
+  return positions;
+}
+
+async function extractStatementContent(arrayBuffer) {
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const allLines = []; // {page, y, text}
+  const iconPositions = []; // {page, x, y}
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const items = [];
+    for (const it of content.items) {
+      if (it.str === undefined) continue;
+      items.push({ str: it.str, x: it.transform[4], y: it.transform[5], w: it.width || 0 });
+    }
+
+    const leftItems = items.filter(it => it.x < COLUMN_SPLIT_X);
+    const rightItems = items.filter(it => it.x >= COLUMN_SPLIT_X);
+    for (const l of clusterItemsIntoLines(leftItems)) allLines.push({ page: p, y: l.y, text: l.text });
+    for (const l of clusterItemsIntoLines(rightItems)) allLines.push({ page: p, y: l.y, text: l.text });
+
+    const pagePositions = await detectIconPositionsOnPage(page);
+    for (const pos of pagePositions) iconPositions.push({ page: p, x: pos.x, y: pos.y });
+  }
+
+  // Defensive reflow: merge a date-prefixed line with no amount into the next
+  // line(s), in case a transaction row was split across a visual-line boundary.
+  // The merged line keeps the page/y of its FIRST constituent line, since
+  // that's the row the gift icon (if any) sits next to.
+  const reflowed = [];
+  for (let i = 0; i < allLines.length; i++) {
+    const first = allLines[i];
+    let text = first.text;
+    let attempts = 0;
+    while (DATE_PREFIX_RE.test(text) && !/\d{1,3}(,\d{2,3})*\.\d{2}/.test(text) && attempts < 3 && (i + 1) < allLines.length) {
+      i++;
+      text = text + " " + allLines[i].text;
+      attempts++;
+    }
+    reflowed.push({ page: first.page, y: first.y, text });
+  }
+  return { lines: reflowed, iconPositions };
+}
+
+/* =========================================================
+   APP STATE & RENDERING
+   ========================================================= */
+
+const state = { files: [], statements: [], rows: [] };
+let rowIdCounter = 1;
+
+const fmtMoney = (n) => (n == null || isNaN(n)) ? "—" : "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtMoneyPlain = (n) => (n == null || isNaN(n)) ? "—" : n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function el(tag, attrs, children) {
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    const v = attrs[k];
+    if (v === null || v === undefined) continue;
+    if (k === "class") e.className = v;
+    else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  if (children) for (const c of children) if (c) e.appendChild(c);
+  return e;
+}
+
+/* ---------- file selection UI ---------- */
+
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("fileInput");
+const browseLink = document.getElementById("browseLink");
+const fileChipRow = document.getElementById("fileChipRow");
+const fileCountNote = document.getElementById("fileCountNote");
+const parseBtn = document.getElementById("parseBtn");
+const bannerArea = document.getElementById("bannerArea");
+
+browseLink.addEventListener("click", (e) => { e.stopPropagation(); fileInput.click(); });
+dropzone.addEventListener("click", () => fileInput.click());
+dropzone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
+
+["dragenter", "dragover"].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add("drag-over"); }));
+["dragleave", "drop"].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove("drag-over"); }));
+dropzone.addEventListener("drop", (e) => { addFiles(Array.from(e.dataTransfer.files || [])); });
+fileInput.addEventListener("change", (e) => { addFiles(Array.from(e.target.files || [])); fileInput.value = ""; });
+
+function addFiles(list) {
+  for (const f of list) {
+    const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+    if (!isPdf) {
+      showBanner("error", "Unsupported format", `"${f.name}" isn't a PDF. Upload the statement file downloaded from RBL's portal, not a screenshot or other export.`);
+      continue;
+    }
+    if (!state.files.some(existing => existing.name === f.name && existing.size === f.size)) {
+      state.files.push(f);
+    }
+  }
+  renderFileChips();
+}
+
+function removeFile(index) { state.files.splice(index, 1); renderFileChips(); }
+
+function renderFileChips() {
+  fileChipRow.innerHTML = "";
+  state.files.forEach((f, idx) => {
+    fileChipRow.appendChild(el("div", { class: "file-chip" }, [
+      el("span", { class: "nm", text: f.name }),
+      el("button", { type: "button", "aria-label": "Remove file", onclick: () => removeFile(idx), text: "×" })
+    ]));
+  });
+  fileCountNote.textContent = state.files.length
+    ? `${state.files.length} file${state.files.length > 1 ? "s" : ""} ready to parse.`
+    : "No files selected yet.";
+  parseBtn.disabled = state.files.length === 0;
+}
+
+/* ---------- banners ---------- */
+
+function showBanner(kind, title, message) {
+  bannerArea.appendChild(el("div", { class: "banner " + kind }, [
+    el("div", null, [el("strong", { text: title }), el("span", { text: message })]),
+    el("button", { class: "dismiss", "aria-label": "Dismiss", onclick: (e) => e.target.closest(".banner").remove(), text: "×" })
+  ]));
+}
+
+function clearBanners() { bannerArea.innerHTML = ""; }
+
+/* ---------- parse orchestration ---------- */
+
+parseBtn.addEventListener("click", async () => {
+  if (!state.files.length) return;
+  clearBanners();
+
+  if (!pdfjsReady) {
+    showBanner("error", "PDF engine unavailable", "The PDF reading library couldn't load from the network. Check your internet connection, then reload this page and try again.");
+    return;
+  }
+
+  parseBtn.disabled = true;
+  parseBtn.textContent = "Parsing…";
+
+  state.statements = [];
+  state.rows = [];
+
+  for (const file of state.files) {
+    let lines = null, iconPositions = null;
+    try {
+      const buf = await file.arrayBuffer();
+      const extracted = await extractStatementContent(buf);
+      lines = extracted.lines;
+      iconPositions = extracted.iconPositions;
+    } catch (err) {
+      showBanner("error", "Invalid PDF", `Couldn't open "${file.name}" as a PDF. The file may be corrupted or password-protected — re-export it from RBL's portal and try again.`);
+      continue;
+    }
+
+    if (!lines || lines.length === 0) {
+      showBanner("error", "Empty extraction", `No text could be read from "${file.name}". It may be a scanned image rather than a text-based statement — this parser can't read scanned copies.`);
+      continue;
+    }
+
+    let metadata, transactions;
+    try {
+      metadata = extractMetadata(lines.map(l => l.text).join("\n"));
+      transactions = processDocumentLines(lines, file.name, iconPositions);
+    } catch (err) {
+      showBanner("error", "Invalid PDF", `Something went wrong reading "${file.name}". The statement layout may not match what this parser expects.`);
+      continue;
+    }
+
+    const hasTableHeader = lines.some(l => TABLE_START_RE.test(l.text.trim()));
+    if (!hasTableHeader) {
+      showBanner("error", "Missing transaction table", `Couldn't find "THE MONTH GONE BY!" in "${file.name}" — this doesn't look like a full RBL IndianOil XTRA statement page set.`);
+    } else if (transactions.length === 0) {
+      showBanner("warn", "Missing transaction table", `Found the transaction table heading in "${file.name}" but no rows could be parsed underneath it. Check that this is a complete statement export.`);
+    }
+
+    const hasEligibleLegend = lines.some(l => /Eligible for Bonus Reward Points/i.test(l.text));
+    const anyIconFlagged = transactions.some(t => t.hasIcon);
+    if (hasEligibleLegend && !anyIconFlagged) {
+      showBanner("warn", "Gift-icon detection found nothing", `"${file.name}" shows the "Eligible for Bonus Reward Points" legend, but no transaction could be matched to a gift icon. Fuel Points/Surcharge columns for this file will be blank — check the table and fill them in manually if needed.`);
+    }
+
+    const missing = [];
+    if (!metadata.cardholderName) missing.push("Cardholder Name");
+    if (metadata.totalAmountDue == null) missing.push("Total Amount Due");
+    if (!metadata.statementDate) missing.push("Statement Date");
+    if (missing.length) {
+      showBanner("warn", "Missing sections", `Couldn't locate ${missing.join(", ")} in "${file.name}". Continuing with whatever was found — review the summary card for this file.`);
+    }
+
+    const validations = runValidations(metadata, transactions);
+    const anyFail = CHECK_KEYS.some(k => validations[k] && !validations[k].na && validations[k].pass === false);
+    if (anyFail) {
+      showBanner("warn", "Validation failure", `One or more reconciliation checks didn't match in "${file.name}". Review the highlighted checks in its summary card before exporting.`);
+    }
+
+    state.statements.push({
+      sourceFile: file.name, metadata, validations, transactionCount: transactions.length,
+    });
+
+    for (const tx of transactions) {
+      state.rows.push({
+        id: rowIdCounter++,
+        sourceFile: (tx.sourceFile || "").replace(/\.pdf$/i, ""),
+        statementDate: metadata.statementDate || "",
+        billingPeriodStart: metadata.billingPeriodStart || "",
+        billingPeriodEnd: metadata.billingPeriodEnd || "",
+        cardholderName: metadata.cardholderName || "",
+        transactionDate: tx.transactionDate,
+        description: tx.description,
+        amount: tx.amount,
+        direction: tx.direction,
+        transactionType: tx.transactionType,
+        actualFuelFilled: tx.actualFuelFilled,
+        fuelSurcharge: tx.fuelSurcharge,
+        gstOnFuelSurcharge: tx.gstOnFuelSurcharge,
+        fuelPoints: tx.fuelPoints,
+        rewardAmount: tx.rewardAmount,
+      });
+    }
+  }
+
+  parseBtn.disabled = false;
+  parseBtn.textContent = "Parse statements";
+
+  renumberRows();
+  renderDashboard();
+  renderStatements();
+  renderTable();
+});
+
+/* ---------- dashboard ---------- */
+
+function renderDashboard() {
+  const dash = document.getElementById("dashboardSection");
+  if (!state.statements.length && !state.rows.length) { dash.classList.add("hidden"); return; }
+  dash.classList.remove("hidden");
+
+  const credits = state.rows.filter(r => r.direction === "CREDIT");
+  const debits = state.rows.filter(r => r.direction === "DEBIT");
+  const sum = (arr) => arr.reduce((a, b) => a + (parseFloat(b.amount) || 0), 0);
+
+  document.getElementById("statCount").textContent = state.rows.length;
+  document.getElementById("statCreditCount").textContent = credits.length;
+  document.getElementById("statDebitCount").textContent = debits.length;
+  document.getElementById("statCredits").textContent = fmtMoney(sum(credits));
+  document.getElementById("statDebits").textContent = fmtMoney(sum(debits));
+
+  let totalChecks = 0, passChecks = 0;
+  for (const s of state.statements) {
+    for (const k of CHECK_KEYS) {
+      const v = s.validations[k];
+      if (!v || v.na) continue;
+      totalChecks++;
+      if (v.pass) passChecks++;
+    }
+  }
+  const statusTile = document.getElementById("statStatusTile");
+  const statusVal = document.getElementById("statStatus");
+  if (totalChecks === 0) {
+    statusVal.textContent = "No checks available";
+    statusTile.classList.remove("ok", "bad");
+  } else if (passChecks === totalChecks) {
+    statusVal.textContent = `All clear — ${passChecks}/${totalChecks} passed`;
+    statusTile.classList.add("ok"); statusTile.classList.remove("bad");
+  } else {
+    statusVal.textContent = `${totalChecks - passChecks} check(s) failed`;
+    statusTile.classList.add("bad"); statusTile.classList.remove("ok");
+  }
+}
+
+/* ---------- statement summary cards ---------- */
+
+function checkItem(check) {
+  const cls = check.na ? "na" : (check.pass ? "pass" : "fail");
+  const icon = check.na ? "—" : (check.pass ? "✓ PASS" : "⚠ FAIL");
+  const detail = check.na
+    ? "Not enough data to check"
+    : `expected ${fmtMoneyPlain(check.expected)} · got ${fmtMoneyPlain(check.actual)} · Δ ${check.delta >= 0 ? "+" : ""}${check.delta.toFixed(2)}`;
+  return el("div", { class: "check-item " + cls }, [
+    el("div", { class: "c-name", text: icon + " — " + check.label }),
+    el("div", { class: "c-detail", text: detail })
+  ]);
+}
+
+function pointsCheckItem(check) {
+  const cls = check.na ? "na" : (check.pass ? "pass" : "fail");
+  const icon = check.na ? "—" : (check.pass ? "✓ PASS" : "⚠ FAIL");
+  const detail = check.na
+    ? "No fuel transactions this cycle"
+    : `credited ${check.actualPoints} pts · calculated ${check.calculatedPoints} pts (cap ${MONTHLY_FUEL_POINTS_CAP}) · ${check.pass ? "you got at least what's calculated" : "shortfall vs. calculated"}`;
+  return el("div", { class: "check-item " + cls }, [
+    el("div", { class: "c-name", text: icon + " — " + check.label }),
+    el("div", { class: "c-detail", text: detail })
+  ]);
+}
+
+function paymentCheckItem(check) {
+  const cls = check.na ? "na" : (check.pass ? "pass" : "fail");
+  const icon = check.na ? "—" : (check.pass ? "✓ PASS" : "⚠ FAIL");
+  const detail = check.na
+    ? "No fuel transactions this cycle"
+    : `net cost ${fmtMoneyPlain(check.actualNetCost)} · calculated ${fmtMoneyPlain(check.calculatedNetCost)} (surcharge waiver cap ₹${MONTHLY_SURCHARGE_WAIVER_CAP}) · ${check.pass ? "no overcharge" : "paid more than calculated"}`;
+  return el("div", { class: "check-item " + cls }, [
+    el("div", { class: "c-name", text: icon + " — " + check.label }),
+    el("div", { class: "c-detail", text: detail })
+  ]);
+}
+
+function metaField(label, value) {
+  return el("div", null, [el("div", { class: "m-lbl", text: label }), el("div", { class: "m-val", text: value == null || value === "" ? "—" : value })]);
+}
+
+function renderStatements() {
+  const section = document.getElementById("statementsSection");
+  const list = document.getElementById("statementsList");
+  list.innerHTML = "";
+  if (!state.statements.length) { section.classList.add("hidden"); return; }
+  section.classList.remove("hidden");
+
+  for (const s of state.statements) {
+    const m = s.metadata;
+    const card = el("div", { class: "stmt-card" });
+
+    card.appendChild(el("div", { class: "stmt-head" }, [
+      el("h3", { text: (m.statementDate || "Statement date unknown") + " · " + s.transactionCount + " transaction" + (s.transactionCount === 1 ? "" : "s") }),
+      el("div", { class: "src", text: s.sourceFile })
+    ]));
+
+    const metaGrid = el("div", { class: "stmt-meta-grid" }, [
+      metaField("Cardholder name", m.cardholderName),
+      metaField("Statement date", m.statementDate),
+      metaField("Billing period start", m.billingPeriodStart),
+      metaField("Billing period end", m.billingPeriodEnd),
+      metaField("Total amount due", fmtMoney(m.totalAmountDue)),
+      metaField("Payment due date", m.paymentDueDate),
+      metaField("Last bill amount", fmtMoney(m.lastBillAmount)),
+      metaField("Payments & credits", fmtMoney(m.paymentsCredits)),
+      metaField("New debits", fmtMoney(m.newDebits)),
+      metaField("Fees & charges", fmtMoney(m.feesCharges)),
+      metaField("Goods & services tax", fmtMoney(m.gst)),
+      metaField("Opening balance (pts)", m.openingBalance == null ? null : String(m.openingBalance)),
+      metaField("Earned (pts)", m.earned == null ? null : String(m.earned)),
+      metaField("Redeemed (pts)", m.redeemed == null ? null : String(m.redeemed)),
+      metaField("Adjustments (pts)", m.adjustments == null ? null : String(m.adjustments)),
+      metaField("Available reward points", m.availableRewardPoints == null ? null : String(m.availableRewardPoints)),
+      metaField("Reward rate (vs. 7.5% advertised)", s.validations.rewardRate.na ? null : s.validations.rewardRate.rate.toFixed(2) + "%"),
+    ]);
+    card.appendChild(metaGrid);
+
+    const checks = el("div", { class: "check-list" }, [
+      checkItem(s.validations.newDebits),
+      checkItem(s.validations.feesCharges),
+      checkItem(s.validations.paymentsCredits),
+      checkItem(s.validations.totalDue),
+      pointsCheckItem(s.validations.pointsCheck),
+      paymentCheckItem(s.validations.paymentCheck),
+    ]);
+    card.appendChild(checks);
+
+    list.appendChild(card);
+  }
+}
+
+/* ---------- transactions table ---------- */
+
+const txnTbody = document.getElementById("txnTbody");
+const tableSection = document.getElementById("tableSection");
+const tableCountNote = document.getElementById("tableCountNote");
+
+function typeOptions(direction, current) {
+  const opts = direction === "CREDIT" ? CREDIT_TYPES : DEBIT_TYPES;
+  return opts.map(o => {
+    const opt = document.createElement("option");
+    opt.value = o;
+    opt.textContent = o;
+    if (o === current) opt.selected = true;
+    return opt;
+  });
+}
+
+function buildRowEl(row) {
+  const tr = el("tr", { "data-id": row.id });
+
+  function textCell(field, value) {
+    const input = el("input", { type: "text", value: value || "" });
+    input.addEventListener("change", () => { row[field] = input.value; });
+    return el("td", null, [input]);
+  }
+
+  // Fuel-economics fields are blank (not 0) when not applicable — null is
+  // rendered as an empty input, and typing a value stores it as a number.
+  function fuelNumberCell(field, value, step) {
+    const input = el("input", { type: "number", step: step || "0.01", value: value == null ? "" : value });
+    input.addEventListener("change", () => {
+      row[field] = input.value === "" ? null : (parseFloat(input.value) || 0);
+      renderDashboard();
+    });
+    return el("td", { class: "amount-cell" }, [input]);
+  }
+
+  tr.appendChild(el("td", null, [el("div", { text: row.transactionNumber || "" })]));
+
+  const dateInput = el("input", { type: "text", value: row.transactionDate || "" });
+  dateInput.addEventListener("change", () => { row.transactionDate = dateInput.value; });
+  tr.appendChild(el("td", { class: "date-cell" }, [dateInput]));
+
+  tr.appendChild(textCell("description", row.description));
+
+  const amountInput = el("input", { type: "number", step: "0.01", value: row.amount });
+  amountInput.addEventListener("change", () => { row.amount = parseFloat(amountInput.value) || 0; renderDashboard(); });
+  tr.appendChild(el("td", { class: "amount-cell" }, [amountInput]));
+
+  const dirSelect = document.createElement("select");
+  dirSelect.className = "dir-select " + row.direction;
+  ["CREDIT", "DEBIT"].forEach(d => {
+    const opt = document.createElement("option");
+    opt.value = d;
+    opt.textContent = d;
+    if (d === row.direction) opt.selected = true;
+    dirSelect.appendChild(opt);
+  });
+  dirSelect.addEventListener("change", () => {
+    row.direction = dirSelect.value;
+    dirSelect.className = "dir-select " + row.direction;
+    row.transactionType = row.direction === "CREDIT" ? "PAYMENT_RECEIVED" : "OTHER_DEBIT";
+    typeSelectEl.innerHTML = "";
+    typeOptions(row.direction, row.transactionType).forEach(o => typeSelectEl.appendChild(o));
+    renderDashboard();
+  });
+  tr.appendChild(el("td", null, [dirSelect]));
+
+  const typeSelectEl = el("select", null, typeOptions(row.direction, row.transactionType));
+  typeSelectEl.addEventListener("change", () => { row.transactionType = typeSelectEl.value; renderDashboard(); });
+  tr.appendChild(el("td", null, [typeSelectEl]));
+
+  tr.appendChild(fuelNumberCell("actualFuelFilled", row.actualFuelFilled));
+  tr.appendChild(fuelNumberCell("fuelSurcharge", row.fuelSurcharge));
+  tr.appendChild(fuelNumberCell("gstOnFuelSurcharge", row.gstOnFuelSurcharge));
+  tr.appendChild(fuelNumberCell("fuelPoints", row.fuelPoints, "1"));
+  tr.appendChild(fuelNumberCell("rewardAmount", row.rewardAmount));
+
+  tr.appendChild(textCell("sourceFile", row.sourceFile));
+  tr.appendChild(textCell("statementDate", row.statementDate));
+  tr.appendChild(textCell("billingPeriodStart", row.billingPeriodStart));
+  tr.appendChild(textCell("billingPeriodEnd", row.billingPeriodEnd));
+  tr.appendChild(textCell("cardholderName", row.cardholderName));
+
+  const delBtn = el("button", { class: "row-del-btn", "aria-label": "Delete row", title: "Delete row", text: "✕" });
+  delBtn.addEventListener("click", () => {
+    state.rows = state.rows.filter(r => r.id !== row.id);
+    renumberRows();
+    renderTable();
+    renderDashboard();
+  });
+  tr.appendChild(el("td", { class: "del-cell" }, [delBtn]));
+
+  return tr;
+}
+
+// Transaction numbers are sequential per source file (001, 002, ...), in the
+// order rows appear for that file. Recomputed whenever rows are added/removed
+// so numbering always stays contiguous, even after manual edits.
+function renumberRows() {
+  const counters = {};
+  for (const r of state.rows) {
+    const key = r.sourceFile || "";
+    counters[key] = (counters[key] || 0) + 1;
+    r.transactionNumber = String(counters[key]).padStart(3, "0");
+  }
+}
+
+function renderTable() {
+  if (!state.rows.length && !state.statements.length) { tableSection.classList.add("hidden"); return; }
+  tableSection.classList.remove("hidden");
+  txnTbody.innerHTML = "";
+  if (!state.rows.length) {
+    txnTbody.appendChild(el("tr", null, [el("td", { colspan: "17" }, [
+      el("div", { class: "empty-state", text: "No transactions to show. Add a row manually, or parse a statement that contains \"THE MONTH GONE BY!\"." })
+    ])]));
+  } else {
+    for (const row of state.rows) txnTbody.appendChild(buildRowEl(row));
+  }
+  tableCountNote.textContent = state.rows.length + " row" + (state.rows.length === 1 ? "" : "s");
+}
+
+document.getElementById("addRowBtn").addEventListener("click", () => {
+  state.rows.push({
+    id: rowIdCounter++,
+    sourceFile: "", statementDate: "", billingPeriodStart: "", billingPeriodEnd: "",
+    cardholderName: "", transactionDate: "", description: "",
+    amount: 0, direction: "DEBIT", transactionType: "OTHER_DEBIT",
+    actualFuelFilled: null, fuelSurcharge: null, gstOnFuelSurcharge: null, fuelPoints: null, rewardAmount: null,
+  });
+  renumberRows();
+  renderTable();
+  renderDashboard();
+});
+
+/* ---------- CSV export ---------- */
+
+function csvEscape(val) {
+  if (val == null) return "";
+  const s = String(val);
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+document.getElementById("downloadCsvBtn").addEventListener("click", () => {
+  if (!state.rows.length) {
+    showBanner("warn", "Nothing to export", "There are no transaction rows to include in a CSV yet.");
+    return;
+  }
+  const headers = [
+    "TransactionNumber", "TransactionDate", "Description", "Amount", "Direction", "TransactionType",
+    "ActualFuelFilled", "FuelSurcharge", "GSTOnFuelSurcharge", "FuelPoints", "RewardAmount",
+    "SourceFile", "StatementDate", "BillingPeriodStart", "BillingPeriodEnd", "CardholderName"
+  ];
+  const money = (v) => v == null ? "" : v.toFixed(2);
+  const lines = [headers.join(",")];
+  for (const r of state.rows) {
+    lines.push([
+      csvEscape(r.transactionNumber), csvEscape(r.transactionDate), csvEscape(r.description),
+      csvEscape((parseFloat(r.amount) || 0).toFixed(2)), csvEscape(r.direction), csvEscape(r.transactionType),
+      csvEscape(money(r.actualFuelFilled)), csvEscape(money(r.fuelSurcharge)), csvEscape(money(r.gstOnFuelSurcharge)),
+      csvEscape(r.fuelPoints == null ? "" : r.fuelPoints), csvEscape(money(r.rewardAmount)),
+      csvEscape(r.sourceFile), csvEscape(r.statementDate), csvEscape(r.billingPeriodStart), csvEscape(r.billingPeriodEnd),
+      csvEscape(r.cardholderName)
+    ].join(","));
+  }
+  const blob = new Blob([lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "rbl_indianoil_xtra_transactions.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+renderFileChips();
+</script>
+</body>
+</html>

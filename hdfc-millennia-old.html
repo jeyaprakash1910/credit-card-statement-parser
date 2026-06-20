@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HDFC Millennia · Statement Parser</title>
+<style>
+  :root {
+    --paper:   #f4efe4;
+    --ink:     #1c2322;
+    --navy:    #004c97;      /* HDFC blue */
+    --navy-lt: #e6eef7;
+    --red:     #d32f2f;      /* HDFC red accent */
+    --brass:   #a67c00;
+    --rust:    #8b3a2a;
+    --sage:    #2a5c3a;
+    --rule:    #c8bfa8;
+    --muted:   #7a7060;
+    --mono: 'Courier New', Courier, monospace;
+    --sans: system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #d9e2ed;
+    font-family: var(--sans);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  header {
+    max-width: 860px;
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    border-bottom: 2px solid var(--navy);
+    padding-bottom: 12px;
+  }
+  header h1 {
+    font-family: var(--mono);
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--navy);
+    text-transform: uppercase;
+  }
+  header span {
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--muted);
+    letter-spacing: .03em;
+  }
+
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    max-width: 860px;
+    margin: 0 auto 20px;
+    overflow: hidden;
+  }
+  .card-head {
+    background: var(--navy);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 7px 16px;
+  }
+  .card-body { padding: 20px; }
+
+  #dropzone {
+    border: 2px dashed var(--rule);
+    border-radius: 4px;
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    position: relative;
+  }
+  #dropzone.hover { border-color: var(--navy); background: var(--navy-lt); }
+  #dropzone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  #dropzone .dz-icon { font-size: 2rem; margin-bottom: 10px; color: var(--navy); }
+  #dropzone p { font-family: var(--mono); font-size: .82rem; color: var(--muted); line-height: 1.6; }
+  #dropzone p strong { color: var(--ink); }
+
+  #filelist { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .file-chip {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: .75rem;
+    padding: 5px 10px;
+    background: var(--navy-lt);
+    border: 1px solid var(--rule); border-radius: 3px;
+  }
+  .file-chip .status { margin-left: auto; }
+  .file-chip .status.ok   { color: var(--sage); }
+  .file-chip .status.err  { color: var(--rust); }
+  .file-chip .status.pend { color: var(--brass); }
+
+  .action-row { margin-top: 16px; display: flex; gap: 10px; align-items: center; }
+
+  button {
+    font-family: var(--mono); font-size: .78rem; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    border: none; border-radius: 3px; padding: 8px 18px;
+    cursor: pointer; transition: opacity .1s;
+  }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button:not(:disabled):hover { opacity: .85; }
+
+  #btn-parse    { background: var(--navy);  color: #fff; }
+  #btn-clear    { background: transparent;  color: var(--muted); border: 1px solid var(--rule); }
+  #btn-download { background: var(--red);   color: #fff; }
+
+  #statusbar { font-family: var(--mono); font-size: .75rem; color: var(--muted); margin-top: 12px; min-height: 18px; }
+  #statusbar.error { color: var(--rust); }
+  #statusbar.ok    { color: var(--sage); }
+
+  #validation {
+    display: none; margin-top: 14px; padding: 10px 14px;
+    border-left: 3px solid var(--navy); background: var(--navy-lt);
+    font-family: var(--mono); font-size: .74rem; color: var(--ink); line-height: 1.8;
+  }
+  #validation.visible { display: block; }
+
+  #preview-wrap { display: none; }
+  #preview-wrap.visible { display: block; }
+
+  .section-label {
+    font-family: var(--mono); font-size: .7rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 8px; border-bottom: 1px solid var(--rule); padding-bottom: 4px;
+  }
+
+  .tbl-wrap { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: .72rem; }
+  thead th {
+    background: var(--ink); color: #fff; text-align: left;
+    padding: 6px 9px; font-weight: 700; letter-spacing: .05em; white-space: nowrap;
+  }
+  tbody tr:nth-child(even) { background: #ece7da; }
+  tbody td { padding: 5px 9px; border-bottom: 1px solid var(--rule); }
+  tbody td.type-debit  { color: var(--rust); font-weight: 700; white-space: nowrap; }
+  tbody td.type-credit { color: var(--sage); font-weight: 700; white-space: nowrap; }
+  tbody td.amount      { text-align: right; white-space: nowrap; }
+  tbody td.pts         { text-align: right; color: var(--navy); }
+
+  .pts-table { margin-top: 20px; }
+  .pts-table table thead th { background: var(--navy); }
+
+  #dl-section {
+    display: none; margin-top: 16px;
+    align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  #dl-section.visible { display: flex; }
+  #summary-strip { font-family: var(--mono); font-size: .74rem; color: var(--muted); }
+  #summary-strip strong { color: var(--ink); }
+</style>
+</head>
+<body>
+<div style="font-family:ui-monospace,monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:16px 22px 0;max-width:1100px;margin:0 auto;"><a href="index.html" style="color:#1F4B43;text-decoration:none;">&larr; All cards</a></div>
+
+<header>
+  <h1>HDFC Millennia · Statement Parser</h1>
+  <span>PDF → CSV · client-side · no data leaves browser</span>
+</header>
+
+<div class="card">
+  <div class="card-head">Upload Statements</div>
+  <div class="card-body">
+    <div id="dropzone">
+      <input type="file" id="fileinput" accept=".pdf,.PDF" multiple>
+      <div class="dz-icon">📄</div>
+      <p><strong>Drop PDFs here</strong> or click to browse<br>
+         Supports multiple HDFC Millennia Credit Card statement PDFs</p>
+    </div>
+    <div id="filelist"></div>
+    <div class="action-row">
+      <button id="btn-parse" disabled>Parse Statements</button>
+      <button id="btn-clear">Clear</button>
+    </div>
+    <div id="statusbar"></div>
+    <div id="validation"></div>
+  </div>
+</div>
+
+<div class="card" id="preview-wrap">
+  <div class="card-head">Preview</div>
+  <div class="card-body">
+    <div class="section-label">Transactions</div>
+    <div class="tbl-wrap">
+      <table id="txn-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Transaction Description</th>
+            <th>Amount (₹)</th>
+            <th>Type</th>
+            <th>Statement Date</th>
+          </tr>
+        </thead>
+        <tbody id="txn-body"></tbody>
+      </table>
+    </div>
+    <div class="pts-table">
+      <div class="section-label" style="margin-top:18px">Cash Points Summary</div>
+      <div class="tbl-wrap">
+        <table id="pts-table">
+          <thead>
+            <tr>
+              <th>Statement Date</th>
+              <th>Opening Bal</th>
+              <th>Earned</th>
+              <th>Disbursed</th>
+              <th>Adjusted/Lapsed</th>
+              <th>Closing Bal</th>
+            </tr>
+          </thead>
+          <tbody id="pts-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="dl-section">
+      <button id="btn-download">⬇ Download CSV</button>
+      <div id="summary-strip"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let selectedFiles = [];
+let parsedTxns    = [];
+let parsedPoints  = [];
+
+const dropzone    = document.getElementById('dropzone');
+const fileinput   = document.getElementById('fileinput');
+const filelistEl  = document.getElementById('filelist');
+const btnParse    = document.getElementById('btn-parse');
+const btnClear    = document.getElementById('btn-clear');
+const btnDownload = document.getElementById('btn-download');
+const statusbar   = document.getElementById('statusbar');
+const validation  = document.getElementById('validation');
+const previewWrap = document.getElementById('preview-wrap');
+const txnBody     = document.getElementById('txn-body');
+const ptsBody     = document.getElementById('pts-body');
+const dlSection   = document.getElementById('dl-section');
+const summaryStrip= document.getElementById('summary-strip');
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('hover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('hover'));
+dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('hover'); addFiles([...e.dataTransfer.files]); });
+fileinput.addEventListener('change', () => { addFiles([...fileinput.files]); fileinput.value=''; });
+
+btnClear.addEventListener('click', () => {
+  selectedFiles = []; parsedTxns = []; parsedPoints = [];
+  filelistEl.innerHTML = ''; txnBody.innerHTML = ''; ptsBody.innerHTML = '';
+  previewWrap.classList.remove('visible');
+  dlSection.classList.remove('visible');
+  validation.classList.remove('visible');
+  setStatus(''); btnParse.disabled = true;
+});
+
+function addFiles(files) {
+  const pdfs = files.filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+  if (!pdfs.length) { setStatus('No PDF files detected.', 'error'); return; }
+  for (const f of pdfs) {
+    if (!selectedFiles.find(x => x.name === f.name)) selectedFiles.push(f);
+  }
+  renderFileList();
+  btnParse.disabled = false;
+  setStatus(`${selectedFiles.length} file(s) ready.`);
+}
+
+function renderFileList() {
+  filelistEl.innerHTML = '';
+  for (const f of selectedFiles) {
+    const chip = document.createElement('div');
+    chip.className = 'file-chip';
+    chip.innerHTML = `<span>📄</span><span>${f.name}</span><span class="status pend" id="st-${CSS.escape(f.name)}">pending</span>`;
+    filelistEl.appendChild(chip);
+  }
+}
+
+function setFileStatus(name, txt, cls) {
+  const el = document.getElementById('st-' + CSS.escape(name));
+  if (el) { el.textContent = txt; el.className = `status ${cls}`; }
+}
+
+function setStatus(msg, cls='') { statusbar.textContent = msg; statusbar.className = cls; }
+
+btnParse.addEventListener('click', async () => {
+  btnParse.disabled = true;
+  setStatus('Parsing…');
+  parsedTxns = []; parsedPoints = [];
+  txnBody.innerHTML = ''; ptsBody.innerHTML = '';
+  previewWrap.classList.remove('visible');
+  dlSection.classList.remove('visible');
+  validation.classList.remove('visible');
+
+  const results = [];
+  for (const file of selectedFiles) {
+    setFileStatus(file.name, 'reading…', 'pend');
+    try {
+      const r = await parseStatement(file);
+      results.push(r);
+      setFileStatus(file.name, `✓ ${r.txns.length} txns`, 'ok');
+    } catch(e) {
+      setFileStatus(file.name, `✗ ${e.message}`, 'err');
+      console.error(file.name, e);
+    }
+  }
+
+  if (!results.length) { setStatus('No statements parsed.', 'error'); btnParse.disabled = false; return; }
+
+  // Sort by statement date ascending
+  results.sort((a,b) => parseDMY(a.stmtDate) - parseDMY(b.stmtDate));
+
+  for (const r of results) {
+    parsedTxns.push(...r.txns);
+    parsedPoints.push({ stmtDate: r.stmtDate, ...r.cashPoints });
+  }
+
+  renderPreview();
+  renderValidation(results);
+  setStatus(`Done. ${parsedTxns.length} transactions from ${results.length} statement(s).`, 'ok');
+  btnParse.disabled = false;
+});
+
+// ── PDF parsing core ──
+async function parseStatement(file) {
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
+
+  // Collect all items across all pages
+  const allItems = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    for (const item of content.items) {
+      if (!item.str?.trim()) continue;
+      allItems.push({
+        page: p,
+        y: Math.round(item.transform[5]),
+        x: Math.round(item.transform[4]),
+        text: item.str.trim()
+      });
+    }
+  }
+
+  // Group by (page, rounded-y) key
+  const byKey = {};
+  for (const item of allItems) {
+    const key = `${item.page}_${Math.round(item.y / 2) * 2}`;
+    if (!byKey[key]) byKey[key] = [];
+    byKey[key].push(item);
+  }
+
+  // Sort rows: page ascending, y descending within page
+  const rows = Object.values(byKey)
+    .map(items => ({ page: items[0].page, y: items[0].y, items: items.sort((a,b)=>a.x-b.x) }))
+    .sort((a,b) => a.page !== b.page ? a.page - b.page : b.y - a.y);
+
+  // 1. Statement Date
+  let stmtDate = '';
+  for (const row of rows) {
+    const joined = row.items.map(i=>i.text).join(' ');
+    const m = joined.match(/Statement\s+Date[:\s]+(\d{2}\/\d{2}\/\d{4})/i);
+    if (m) { stmtDate = m[1]; break; }
+  }
+  if (!stmtDate) throw new Error('Statement date not found — is this an HDFC Millennia statement?');
+
+  // 2. Transactions — date at x≈38 (left margin), desc 100-499, amount ≥499
+  const txns = [];
+  for (const row of rows) {
+    const first = row.items[0];
+    if (!first || !/^\d{2}\/\d{2}\/\d{4}$/.test(first.text)) continue;
+    if (first.x > 60) continue; // date must be at far left (x≈38)
+
+    const date    = first.text;
+    const descItems = row.items.filter(i => i.x >= 100 && i.x < 499);
+    const amtItems  = row.items.filter(i => i.x >= 499);
+
+    const desc   = descItems.map(i=>i.text).join(' ');
+    const amtRaw = amtItems.map(i=>i.text).join(' ').trim();
+
+    let amount = amtRaw, type = 'DEBIT';
+    if (/\s*Cr$/i.test(amtRaw)) {
+      type = 'CREDIT';
+      amount = amtRaw.replace(/\s*Cr$/i, '').replace(/,/g,'').trim();
+    } else {
+      amount = amtRaw.replace(/,/g,'');
+    }
+
+    if (!amount || !desc) continue; // skip empty/header rows
+    txns.push({ date, desc, amount, type, stmtDate });
+  }
+
+  // 3. Cash points — "Cash points waiting for you" section
+  let cashPoints = { opening:'0', earned:'0', disbursed:'0', adjusted:'0', closing:'0' };
+  let cpHeaderRow = null;
+  for (const row of rows) {
+    if (row.items.map(i=>i.text).join(' ').includes('Cash points waiting for you')) {
+      cpHeaderRow = { page: row.page, y: row.y };
+    }
+    if (cpHeaderRow && row.page === cpHeaderRow.page && row.y < cpHeaderRow.y - 5 && row.y > cpHeaderRow.y - 50) {
+      const nums = row.items.filter(i => /^[\d,]+$/.test(i.text)).map(i => i.text.replace(/,/g,''));
+      if (nums.length >= 5) {
+        cashPoints = { opening: nums[0], earned: nums[1], disbursed: nums[2], adjusted: nums[3], closing: nums[4] };
+        cpHeaderRow = null;
+      }
+    }
+  }
+
+  return { stmtDate, txns, cashPoints };
+}
+
+// ── Render preview ──
+function renderPreview() {
+  txnBody.innerHTML = '';
+  parsedTxns.forEach((t, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td>${t.date}</td>
+      <td>${escHtml(t.desc)}</td>
+      <td class="amount">₹ ${Number(t.amount).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+      <td class="type-${t.type.toLowerCase()}">${t.type}</td>
+      <td>${t.stmtDate}</td>`;
+    txnBody.appendChild(tr);
+  });
+
+  ptsBody.innerHTML = '';
+  parsedPoints.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.stmtDate}</td>
+      <td class="pts">${p.opening}</td>
+      <td class="pts">${p.earned}</td>
+      <td class="pts">${p.disbursed}</td>
+      <td class="pts">${p.adjusted}</td>
+      <td class="pts">${p.closing}</td>`;
+    ptsBody.appendChild(tr);
+  });
+
+  const totalDebit  = parsedTxns.filter(t=>t.type==='DEBIT').reduce((s,t)=>s+Number(t.amount),0);
+  const totalCredit = parsedTxns.filter(t=>t.type==='CREDIT').reduce((s,t)=>s+Number(t.amount),0);
+  const latestPts   = parsedPoints.length ? parsedPoints[parsedPoints.length-1].closing : 0;
+
+  summaryStrip.innerHTML =
+    `<strong>${parsedTxns.length}</strong> transactions &nbsp;|&nbsp; ` +
+    `Debits: <strong>₹ ${totalDebit.toLocaleString('en-IN',{minimumFractionDigits:2})}</strong> &nbsp;|&nbsp; ` +
+    `Credits: <strong>₹ ${totalCredit.toLocaleString('en-IN',{minimumFractionDigits:2})}</strong> &nbsp;|&nbsp; ` +
+    `Latest cash points: <strong>${latestPts}</strong>`;
+
+  previewWrap.classList.add('visible');
+  dlSection.classList.add('visible');
+}
+
+function renderValidation(results) {
+  const lines = [];
+  for (const r of results) {
+    const debits  = r.txns.filter(t=>t.type==='DEBIT').reduce((s,t)=>s+Number(t.amount),0);
+    const credits = r.txns.filter(t=>t.type==='CREDIT').reduce((s,t)=>s+Number(t.amount),0);
+    lines.push(
+      `Stmt ${r.stmtDate}  ·  ${r.txns.length} rows  ·  ` +
+      `Debits ₹${debits.toFixed(2)}  Credits ₹${credits.toFixed(2)}  ` +
+      `Points: ${r.cashPoints.opening}→${r.cashPoints.closing} (earned ${r.cashPoints.earned})`
+    );
+  }
+  validation.innerHTML = lines.map(l=>`<div>${l}</div>`).join('');
+  validation.classList.add('visible');
+}
+
+// ── CSV download ──
+btnDownload.addEventListener('click', () => {
+  const rows = [];
+  rows.push(['Date','Transaction Description','Amount (Rs.)','Type','Statement Date']);
+  for (const t of parsedTxns) {
+    rows.push([t.date, t.desc, t.amount, t.type, t.stmtDate]);
+  }
+  rows.push([]);
+  rows.push([]);
+  rows.push(['CASH POINTS SUMMARY']);
+  rows.push(['Statement Date','Opening Balance','Earned','Disbursed','Adjusted/Lapsed','Closing Balance']);
+  for (const p of parsedPoints) {
+    rows.push([p.stmtDate, p.opening, p.earned, p.disbursed, p.adjusted, p.closing]);
+  }
+
+  const csv = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'hdfc_millennia_statements.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ── Helpers ──
+function csvCell(val) {
+  const s = String(val ?? '');
+  return /[,"\r\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function parseDMY(s) {
+  if (!s) return 0;
+  const [d,m,y] = s.split('/');
+  return new Date(+y, +m-1, +d).getTime();
+}
+</script>
+</body>
+</html>
